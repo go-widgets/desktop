@@ -1,0 +1,220 @@
+// Copyright (c) 2026 the go-widgets/desktop authors. All rights reserved.
+//
+// SPDX-License-Identifier: BSD-3-Clause
+
+// Command desktop is a native go-widgets desktop-shell demo. It composes the
+// whole go-freedesktop + go-widgets stack against a real Linux filesystem:
+//
+//   - desktopentry.Scan   -> the dock + launcher app index
+//   - icontheme.FindIcon  -> dock / launcher / file-grid icons
+//   - menu.Load           -> the categorized application menu
+//   - mime + mimeapps     -> file-grid MIME classification ("open with")
+//   - go-thumbnail        -> file-grid thumbnail cache keys
+//   - notifications       -> a live org.freedesktop.Notifications daemon whose
+//     incoming notifications render as go-widgets Toasts (Linux only)
+//
+// go-widgets is a pure pixel-blitting toolkit, so the shell renders into an
+// offscreen framebuffer; -capture writes that framebuffer to a PNG (the
+// headless "screenshot" path used for autonomous visual verification), and a
+// host compositor would otherwise present it.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"image/png"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/go-freedesktop/desktopentry"
+	"github.com/go-freedesktop/menu"
+	"github.com/go-freedesktop/mime"
+	"github.com/go-freedesktop/mimeapps"
+	"github.com/go-thumbnail/thumbnail"
+	"github.com/go-widgets/desktop/render"
+	"github.com/go-widgets/desktop/shell"
+	"github.com/go-widgets/toolkit"
+)
+
+// osExit is a seam over os.Exit so run's exit codes can be asserted in tests.
+var osExit = os.Exit
+
+func main() { osExit(run(os.Args[1:], os.Stderr)) }
+
+// options are the parsed command-line flags.
+type options struct {
+	dir       string
+	capture   string
+	query     string
+	launch    string
+	notify    string
+	iconTheme string
+	width     int
+	height    int
+	light     bool
+}
+
+// run parses args, builds the shell scene and performs the requested action,
+// returning the process exit code. It writes diagnostics to errw.
+func run(args []string, errw io.Writer) int {
+	fs := flag.NewFlagSet("desktop", flag.ContinueOnError)
+	fs.SetOutput(errw)
+	var o options
+	fs.StringVar(&o.dir, "dir", defaultDir(), "directory to show in the file grid")
+	fs.StringVar(&o.capture, "capture", "", "render the shell to this PNG path and exit")
+	fs.StringVar(&o.query, "query", "", "seed the launcher search query")
+	fs.StringVar(&o.launch, "launch", "", "launch the app with this desktop-file id, then exit")
+	fs.StringVar(&o.notify, "notify", "", `send a notification "Summary|Body" through the daemon (Linux)`)
+	fs.StringVar(&o.iconTheme, "icon-theme", "", "icon theme name (default hicolor)")
+	fs.IntVar(&o.width, "w", 960, "render width")
+	fs.IntVar(&o.height, "h", 600, "render height")
+	fs.BoolVar(&o.light, "light", false, "use the light theme")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	sc, apps := buildScene(o)
+
+	if o.launch != "" {
+		if err := launchByID(apps, o.launch); err != nil {
+			fmt.Fprintf(errw, "desktop: launch %q: %v\n", o.launch, err)
+			return 1
+		}
+		return 0
+	}
+
+	if o.notify != "" {
+		if err := runNotify(sc, o.notify); err != nil {
+			fmt.Fprintf(errw, "desktop: notify: %v\n", err)
+			return 1
+		}
+	}
+
+	if o.capture != "" {
+		if err := capture(sc, o.capture); err != nil {
+			fmt.Fprintf(errw, "desktop: capture: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(errw, "desktop: dock=%d apps=%d categories=%d files=%d toasts=%d -> %s\n",
+			sc.DockCount(), sc.AppCount(), sc.MenuCategoryCount(), sc.FileCount(), sc.ToastCount(), o.capture)
+		return 0
+	}
+
+	// No capture / launch: report the composed shell and exit (a real
+	// interactive windowed backend is a follow-up; the toolkit renders into a
+	// buffer the host compositor presents).
+	fmt.Fprintf(errw, "desktop: composed shell — dock=%d apps=%d categories=%d files=%d\n",
+		sc.DockCount(), sc.AppCount(), sc.MenuCategoryCount(), sc.FileCount())
+	return 0
+}
+
+// buildScene scans the filesystem and composes the shell Scene, returning it
+// alongside the app index (needed by -launch).
+func buildScene(o options) (*render.Scene, *shell.AppIndex) {
+	apps := shell.NewAppIndex(desktopentry.Scan())
+
+	var menuModel *shell.MenuModel
+	if tree, err := menu.Load(); err == nil {
+		menuModel = shell.NewMenuModel(tree)
+	} else {
+		menuModel = shell.NewMenuModel(nil)
+	}
+
+	db, err := mime.Load()
+	if err != nil {
+		db = mime.New()
+	}
+	resolver := shell.NewResolver(db, mimeapps.Load())
+
+	var dir *shell.Dir
+	if d, err := shell.ListDir(o.dir); err == nil {
+		d.Classify(resolver)
+		dir = d
+	}
+
+	theme := toolkit.DefaultDark()
+	if o.light {
+		theme = toolkit.DefaultLight()
+	}
+
+	sc := render.New(render.Config{
+		Apps:        apps,
+		Menu:        menuModel,
+		Dir:         dir,
+		Thumbnailer: shell.NewThumbnailer(thumbnail.Normal),
+		Icons:       render.NewIconLoader(o.iconTheme, render.DefaultIconSize),
+		Theme:       theme,
+		Width:       o.width,
+		Height:      o.height,
+	})
+	if o.query != "" {
+		sc.SetQuery(o.query)
+	}
+	return sc, apps
+}
+
+// launchByID resolves a desktop-file id in the index and starts it. This is the
+// one legitimate exec of an external command in the shell: launching a
+// user-chosen application is the launcher's whole purpose. It is reached only
+// via the explicit -launch flag.
+func launchByID(apps *shell.AppIndex, id string) error {
+	for _, a := range apps.All() {
+		if a.ID == id {
+			return launch(a)
+		}
+	}
+	return fmt.Errorf("no app with id %q", id)
+}
+
+// launch expands an app's Exec line and starts the resulting argv detached.
+func launch(a shell.App) error {
+	e := a.Entry()
+	if e == nil {
+		return fmt.Errorf("app %q has no desktop entry", a.ID)
+	}
+	argv, err := e.ExpandExec(nil, "")
+	if err != nil {
+		return err
+	}
+	if len(argv) == 0 {
+		return fmt.Errorf("app %q expanded to an empty command", a.ID)
+	}
+	cmd := exec.Command(argv[0], argv[1:]...)
+	return cmd.Start()
+}
+
+// capture renders the scene to a PNG file.
+func capture(sc *render.Scene, path string) error {
+	img, err := sc.Render()
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return png.Encode(f, img)
+}
+
+// defaultDir is the directory the file grid shows when -dir is not given.
+func defaultDir() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return string(filepath.Separator)
+}
+
+// splitNotify splits a "Summary|Body" spec into its two parts.
+func splitNotify(spec string) (summary, body string) {
+	if i := strings.IndexByte(spec, '|'); i >= 0 {
+		return spec[:i], spec[i+1:]
+	}
+	return spec, ""
+}
