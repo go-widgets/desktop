@@ -56,7 +56,7 @@ func runWindow(o options, sc *render.Scene, errw io.Writer) error {
 	}
 	defer be.Close()
 	// Hand the backend the shell's damage-aware root (scene.HostRoot): window
-	// v0.4.0 type-asserts it for RenderDamaged and presents only the rectangles
+	// type-asserts it for RenderDamaged and presents only the rectangles
 	// the shell reports changed each frame, instead of blitting the whole
 	// surface. It is pixel-identical to the full composite by construction (and
 	// still full-repaints correctly on a damage-unaware host), so the live

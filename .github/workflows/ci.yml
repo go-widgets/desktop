@@ -159,7 +159,7 @@ jobs:
         with:
           go-version: "1.26.4"
       - name: Cross-compile the portable packages + client for js/wasm
-        run: GOOS=js GOARCH=wasm CGO_ENABLED=0 go build ./shell/... ./source/... ./render/... ./wasmhost/... ./clients/...
+        run: GOOS=js GOARCH=wasm CGO_ENABLED=0 go build ./shell/... ./source/... ./render/... ./clients/...
       - name: Link the wasmdesk client wasm
         run: |
           GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o desktop.wasm ./clients/desktop/

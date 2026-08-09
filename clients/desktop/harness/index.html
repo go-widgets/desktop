@@ -14,8 +14,10 @@
 </head>
 <body>
 <header>
-  wasmbox protocol-faithful harness — real <code>clients/sdk/sdk.js</code> + real Go/wasm
-  <code>go-widgets/desktop</code> client, driven over the real hello/welcome/commit/input wire.
+  wasmbox protocol-faithful harness — real Go/wasm <code>go-widgets/desktop</code>
+  client (its wasmbox wire lives in <code>go-widgets/window</code>), driven over the
+  real hello/welcome/commit/input wire. The REAL Ruby desktop proof is
+  <code>clients/desktop/harness/probe-real-desktop.mjs</code>.
 </header>
 <div id="stage"><canvas id="screen" width="960" height="600"></canvas></div>
 <script>
@@ -24,9 +26,12 @@
 // real Ruby compositor does on the wire for a single external client —
 // hand it a private MessagePort, answer its hello with a welcome, blit each
 // commit's shared surface onto the desktop canvas, and forward input events —
-// but without the Ruby window-manager/chrome. This is the honest browser proof
-// when the full Ruby desktop cannot be booted with a newly-added client (that
-// would require modifying the read-only wasmbox boot-config).
+// but without the Ruby window-manager/chrome. It is the DETERMINISTIC CI FLOOR:
+// it runs the identical wire/SAB/input assertions with no Ruby compositor build,
+// so it gates anywhere. The PRIMARY proof runs the desktop shell as a genuine
+// external client of the REAL wasmdesk/wasmbox Ruby compositor via
+// wasmboxSpawnExternal (clients/desktop/harness/probe-real-desktop.mjs) — no
+// boot-config edit is needed, so both tiers exercise the same window backend.
 const canvas = document.getElementById("screen");
 const ctx = canvas.getContext("2d");
 

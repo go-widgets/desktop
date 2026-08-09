@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Reproducible wasmbox (wasmdesk) browser proof for the go-widgets/desktop
-# client. Assembles a serving tree from the REAL wasmbox client SDK + dev
-# server (a read-only clone of wasmdesk/wasmbox) and this repo's Go/wasm client,
-# serves it with the COOP/COEP headers a SharedArrayBuffer page needs, and drives
-# it with Playwright (clients/desktop/harness/drive.js). Screenshots land in
-# $OUT (default: docs/).
+# client — the DETERMINISTIC CI FLOOR. Assembles a serving tree from the REAL
+# wasmbox dev server (a read-only clone of wasmdesk/wasmbox, for the COOP/COEP
+# headers a SharedArrayBuffer page needs) and this repo's Go/wasm client, serves
+# it, and drives the protocol-faithful harness (index.html) with Playwright
+# (clients/desktop/harness/drive.js). The client's wasmbox wire lives entirely in
+# go-widgets/window, so this needs no wasmbox client SDK. Screenshots land in
+# $OUT (default: docs/). The PRIMARY proof against the real Ruby desktop is
+# clients/desktop/harness/probe-real-desktop.mjs.
 #
 # Usage:  clients/desktop/harness/run.sh
 # Env:    OUT (screenshot dir), PORT (default 8099), STAMP (date stamp),
@@ -19,14 +22,13 @@ WORK="$(mktemp -d)"
 HARNESS="$WORK/harness"
 
 echo "== assembling harness tree in $WORK =="
-mkdir -p "$HARNESS/clients/desktop" "$HARNESS/clients/sdk"
+mkdir -p "$HARNESS/clients/desktop"
 
-# The wasmbox read-only clone (SDK + dev server). Never modified.
+# The wasmbox read-only clone (dev server for COOP/COEP). Never modified.
 if [ -z "${WASMBOX_DIR:-}" ]; then
   WASMBOX_DIR="$WORK/wasmbox"
   git clone --depth 1 https://github.com/wasmdesk/wasmbox.git "$WASMBOX_DIR"
 fi
-cp "$WASMBOX_DIR/clients/sdk/sdk.js" "$HARNESS/clients/sdk/sdk.js"
 
 # Go wasm_exec.js + the compiled desktop client + its worker.
 GOROOT="$(go env GOROOT)"
