@@ -103,11 +103,15 @@ func run(args []string, errw io.Writer) int {
 		return 0
 	}
 
-	// No capture / launch: report the composed shell and exit (a real
-	// interactive windowed backend is a follow-up; the toolkit renders into a
-	// buffer the host compositor presents).
-	fmt.Fprintf(errw, "desktop: composed shell — dock=%d apps=%d categories=%d files=%d\n",
-		sc.DockCount(), sc.AppCount(), sc.MenuCategoryCount(), sc.FileCount())
+	// No capture / launch: open a real window on the running display server and
+	// run the shell interactively until it is closed. On a headless host (no
+	// DISPLAY / WAYLAND_DISPLAY) or a platform with no windowing backend,
+	// runWindow falls back to reporting the composed shell — use -capture for a
+	// screenshot there.
+	if err := runWindow(o, sc, errw); err != nil {
+		fmt.Fprintf(errw, "desktop: window: %v\n", err)
+		return 1
+	}
 	return 0
 }
 

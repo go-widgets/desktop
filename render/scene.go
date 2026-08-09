@@ -255,6 +255,52 @@ func (s *Scene) ToastCount() int { return len(s.toasts) }
 // Root returns the composed root widget.
 func (s *Scene) Root() toolkit.Widget { return s.root }
 
+// Theme returns the theme the scene paints with, so a windowing backend paints
+// its background and widgets with the same palette the -capture path uses.
+func (s *Scene) Theme() *toolkit.Theme { return s.theme }
+
+// Widget returns the whole shell — the Border root plus its floating toast
+// overlay — as a single toolkit.Widget. A windowing backend such as
+// github.com/go-widgets/window drives exactly one root widget through its Run
+// loop, so wrapping the overlay here lets the live window show the same
+// composition (dock, launcher, menu, file grid AND notification toasts) that
+// Render paints to a PNG. It is backend-agnostic: it only touches toolkit
+// primitives and reads the scene's live toast slice at Draw time, so a toast
+// pushed by the notifications daemon appears on the next repaint.
+func (s *Scene) Widget() toolkit.Widget { return &sceneWidget{sc: s} }
+
+// sceneWidget adapts a Scene to one toolkit.Widget: it lays the shell root into
+// its bounds, draws it, then anchors and draws the toast stack on top, and
+// forwards input to the root. It mirrors Scene.Render's root-then-toasts
+// compositing, but as a live widget a backend can Run rather than a one-shot
+// image.
+type sceneWidget struct {
+	toolkit.Base
+	sc *Scene
+}
+
+// SetBounds records the widget bounds and propagates them to the shell root so
+// the root lays out before the first event is routed.
+func (w *sceneWidget) SetBounds(r toolkit.Rect) {
+	w.Base.SetBounds(r)
+	w.sc.root.SetBounds(r)
+}
+
+// Draw paints the shell root then overlays the floating toast stack, anchored
+// top-right within the widget's bounds exactly as Scene.Render does.
+func (w *sceneWidget) Draw(p painter.Painter, th *toolkit.Theme) {
+	b := w.Bounds()
+	w.sc.root.SetBounds(b)
+	w.sc.root.Draw(p, th)
+	for i, t := range w.sc.toasts {
+		t.AnchorIn(b, toolkit.TopRight, i)
+		t.Draw(p, th)
+	}
+}
+
+// OnEvent forwards input to the shell root (the toast overlay is passive).
+func (w *sceneWidget) OnEvent(ev toolkit.Event) { w.sc.root.OnEvent(ev) }
+
 // Render paints the whole shell (root widget then the toast stack) into a fresh
 // image of the configured size.
 func (s *Scene) Render() (*image.RGBA, error) {
