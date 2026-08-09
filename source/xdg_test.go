@@ -136,7 +136,11 @@ func TestXDGThumbKey(t *testing.T) {
 	xdgFixture(t)
 	x := NewXDG(XDGOptions{})
 
-	imgItem := shell.FileItem{Name: "p.png", Path: "/tmp/p.png", Mime: "image/png"}
+	// A unique path so the thumbnail hash is fresh (macOS resolves the cache to
+	// ~/Library/Caches regardless of XDG_CACHE_HOME, so a fixed path could hit a
+	// stale cache file from a previous run).
+	uniq := filepath.Join(t.TempDir(), "p.png")
+	imgItem := shell.FileItem{Name: "p.png", Path: uniq, Mime: "image/png"}
 	txtItem := shell.FileItem{Name: "a.txt", Path: "/tmp/a.txt", Mime: "text/plain"}
 
 	// Non-image -> "".
@@ -158,6 +162,7 @@ func TestXDGThumbKey(t *testing.T) {
 	if err := os.WriteFile(want, pngBytes(t, color.RGBA{9, 9, 9, 255}), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = os.Remove(want) }) // keep the shared cache dir clean
 	if got := x.ThumbKey(imgItem); got != want {
 		t.Errorf("ThumbKey(cached image) = %q, want %q", got, want)
 	}
