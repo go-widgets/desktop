@@ -16,7 +16,19 @@ import (
 )
 
 // Config bundles the shell models and rendering resources a Scene composes.
+//
+// There are two ways to fill it. Supply Source (a shell.AppSource) and New
+// derives Apps, Menu, Dir, the icon loader and the thumbnail-key policy from it
+// — the portable path: the identical Scene is produced whether Source scans a
+// real XDG filesystem (native) or serves a curated set from an embed.FS
+// (browser). Or supply the individual model fields directly (Apps, Menu, Dir,
+// Thumbnailer, Icons) — the explicit path used by the render unit tests. Source
+// takes precedence over the individual fields when both are set.
 type Config struct {
+	// Source, when non-nil, provides the app index, menu, directory listing,
+	// icon bytes and thumbnail keys; New fills Apps/Menu/Dir/Icons from it.
+	Source shell.AppSource
+
 	Apps        *shell.AppIndex
 	Menu        *shell.MenuModel
 	Dir         *shell.Dir
@@ -64,10 +76,27 @@ type Scene struct {
 	// reusable per-cell widgets for the file grid.
 	cellIcon  *toolkit.Image
 	cellLabel *toolkit.Label
+
+	// thumbKey maps a file item to its thumbnail's icon-loader key ("" for
+	// none). It is the source's ThumbKey when a Source was supplied, otherwise
+	// a Thumbnailer-backed native policy (an existing on-disk cache path).
+	thumbKey func(shell.FileItem) string
 }
 
-// New composes a Scene from cfg, wiring the mvvm bindings immediately.
+// New composes a Scene from cfg, wiring the mvvm bindings immediately. When
+// cfg.Source is set, the app index, menu, directory listing, icon loader and
+// thumbnail policy are all derived from it (so a browser embed.FS source and a
+// native XDG source yield the same Scene); otherwise the explicit model fields
+// are used as given.
 func New(cfg Config) *Scene {
+	if cfg.Source != nil {
+		cfg.Apps = cfg.Source.Apps()
+		cfg.Menu = cfg.Source.Menu()
+		cfg.Dir = cfg.Source.Dir()
+		if cfg.Icons == nil {
+			cfg.Icons = NewIconLoaderFunc(cfg.Source.IconBytes, DefaultIconSize)
+		}
+	}
 	if cfg.Theme == nil {
 		cfg.Theme = toolkit.DefaultDark()
 	}
@@ -86,8 +115,31 @@ func New(cfg Config) *Scene {
 		cellLabel: toolkit.NewLabel(""),
 	}
 	s.cellIcon = toolkit.NewImageFit(nil, 0, 0)
+	s.thumbKey = thumbKeyPolicy(cfg)
 	s.build()
 	return s
+}
+
+// thumbKeyPolicy picks the file-grid thumbnail-key resolver: the source's
+// ThumbKey when a Source was supplied (portable — an embed.FS asset name in the
+// browser, an on-disk cache path natively), otherwise a Thumbnailer-backed
+// native policy that returns an existing on-disk cache path (and "" when the
+// thumbnail has not been generated). It is nil when neither is available, in
+// which case the file grid falls back to per-MIME theme icons.
+func thumbKeyPolicy(cfg Config) func(shell.FileItem) string {
+	if cfg.Source != nil {
+		return cfg.Source.ThumbKey
+	}
+	if cfg.Thumbnailer != nil {
+		tn := cfg.Thumbnailer
+		return func(it shell.FileItem) string {
+			if p := tn.Path(it); p != "" && fileExists(p) {
+				return p
+			}
+			return ""
+		}
+	}
+	return nil
 }
 
 // build lays out the widget tree and wires the mvvm bindings.
@@ -240,21 +292,23 @@ func (s *Scene) drawCell(p painter.Painter, th *toolkit.Theme, r toolkit.Rect, _
 // cellImage picks the icon/thumbnail Image for a file item, reusing the shared
 // cell Image widget to avoid per-frame allocation.
 func (s *Scene) cellImage(item shell.FileItem) *toolkit.Image {
-	src := s.cfg.Icons.Image(iconNameFor(item, s.cfg.Thumbnailer))
+	src := s.cfg.Icons.Image(s.iconNameFor(item))
 	s.cellIcon.Pixels, s.cellIcon.W, s.cellIcon.H, s.cellIcon.Scale =
 		src.Pixels, src.W, src.H, toolkit.ScaleFit
 	return s.cellIcon
 }
 
-// iconNameFor maps a file item to an icon-theme name (or a thumbnail path when
-// one exists in the cache).
-func iconNameFor(item shell.FileItem, tn *shell.Thumbnailer) string {
+// iconNameFor maps a file item to an icon-loader key: "folder" for a directory,
+// the thumbnail key when the thumbnail policy supplies one (an on-disk cache
+// path natively, a virtual asset name in the browser), otherwise a per-MIME
+// theme-icon name.
+func (s *Scene) iconNameFor(item shell.FileItem) string {
 	if item.IsDir {
 		return "folder"
 	}
-	if tn != nil {
-		if p := tn.Path(item); p != "" && fileExists(p) {
-			return p // absolute path -> loaded directly
+	if s.thumbKey != nil {
+		if k := s.thumbKey(item); k != "" {
+			return k
 		}
 	}
 	if item.Mime == "" {
