@@ -20,8 +20,8 @@ github.com/go-images/images v0.0.0-20260805203258-4b7a400612e8 h1:jIJ8nz40LzlBSs
 github.com/go-images/images v0.0.0-20260805203258-4b7a400612e8/go.mod h1:nWwQCf77xG1GhaSD3rvlp7FNjjDhz47vrztyeBvIerk=
 github.com/go-opentype/bidi v0.2.0 h1:ze8chEUw22c98LZug2GByD9cc3Zuq0qARxrSLGj1ioQ=
 github.com/go-opentype/bidi v0.2.0/go.mod h1:PaWZ9P93jwQaXsEvAoSxvJ3P70S9f8TuFGDstTvcfmM=
-github.com/go-opentype/fonts v0.4.1 h1:f2vVTa0QXiLjW2A5TwyPx0PFgQa9GYlysfgR5C2bbsQ=
-github.com/go-opentype/fonts v0.4.1/go.mod h1:C6yQL2apHItfEZ5hztpsHF0S5mlX/hklLlq/Z5fRG/g=
+github.com/go-opentype/fonts v0.6.0 h1:pUKITjwC/gZg+XNCqP5eGLi8RHu2RAIcDrr6yp1VKMU=
+github.com/go-opentype/fonts v0.6.0/go.mod h1:C6yQL2apHItfEZ5hztpsHF0S5mlX/hklLlq/Z5fRG/g=
 github.com/go-opentype/opentype v0.3.7 h1:+Wv3S0+YBFIVqwYw4R3wMPLKVByU4VayduD/t9Pof+w=
 github.com/go-opentype/opentype v0.3.7/go.mod h1:AOixevJf7XQaH7+WG+OMIOZEbYPXfMqklVk26Y6YTUU=
 github.com/go-opentype/shape v0.3.2 h1:qaaUhg9m6yusm6MCfa07DhZ5Z0ZxOmGwLxHklVeLUUA=
@@ -30,10 +30,12 @@ github.com/go-thumbnail/thumbnail v0.1.0 h1:fgYeTuAyh+IqdMSCVcAHlxppdLoxTGiHQN0z
 github.com/go-thumbnail/thumbnail v0.1.0/go.mod h1:JU2H+78oClDaVvOpiD6DF70AmYtIRTdJMilEHYiFckg=
 github.com/go-widgets/mvvm v0.5.0 h1:o5hh6HAxbApONcbZxmyV9q12pCAPGRd6L24aS3gaCbA=
 github.com/go-widgets/mvvm v0.5.0/go.mod h1:Phdrd434RLxXW1D6dL1PPQH1tABwYLIN2X7jQVC4TbY=
-github.com/go-widgets/painter v0.2.0 h1:C7anwlKLYnlTeCK90xKYvy0srxYXqhuvyDFismlf2Sc=
-github.com/go-widgets/painter v0.2.0/go.mod h1:ccmlkH2UmcXQh6rt9Fu2eDt2RI0B5V0POaGmUKeW0EQ=
-github.com/go-widgets/toolkit v0.125.0 h1:jdP1s4wdaBfNp465Icfe9iZGDilSrsR3/ydxYBOLBWo=
-github.com/go-widgets/toolkit v0.125.0/go.mod h1:skj2qJmOFphKJvakmY3F6UnchC2fP4zMNdKvpyMa1kY=
+github.com/go-widgets/painter v0.3.0 h1:Y/0D3WuaiILpjmdV8wSGD66Po6rH5piF3YvjAc6pChI=
+github.com/go-widgets/painter v0.3.0/go.mod h1:ccmlkH2UmcXQh6rt9Fu2eDt2RI0B5V0POaGmUKeW0EQ=
+github.com/go-widgets/toolkit v0.127.0 h1:8ldvVeRiOQOBvTQXoSu1w8CmEnYLOlU3ZTK/gtqwQBw=
+github.com/go-widgets/toolkit v0.127.0/go.mod h1:hekxU+C0moasoJPAI366VWNiZBbRSAjloC0tKnwXkWY=
+github.com/go-widgets/window v0.3.0 h1:xEKFYAu5n/8l5g7cYK63Rb6VXDk6cflOv89GeFcC3AE=
+github.com/go-widgets/window v0.3.0/go.mod h1:GmpazxJ6ouV8X56aVbR7qGiJjKA1gY5898FWmmFbXpA=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/rkoesters/xdg v0.0.1 h1:RmfYxghVvIsb4d51u5LtNOcwqY5r3P44u6o86qqvBMA=

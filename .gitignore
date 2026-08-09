@@ -2,3 +2,7 @@
 *.png
 cover.out
 coverage.out
+
+# Keep committed proof screenshots (dated live-window captures) under docs/,
+# while transient captures elsewhere stay ignored.
+!docs/*.png

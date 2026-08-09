@@ -92,3 +92,38 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y qemu-user-static
       - name: Test under qemu (${{ matrix.goarch }})
         run: CGO_ENABLED=0 GOARCH=${{ matrix.goarch }} go test -exec=${{ matrix.qemu }} ./...
+
+  # Live windowed proof: open the desktop shell in a REAL X11 window (via
+  # github.com/go-widgets/window, the same path `desktop` with no flags uses)
+  # under Xvfb, capture the server framebuffer with ImageMagick's `import`, and
+  # assert from sampled pixels that the shell rendered (dock + launcher carry
+  # widget content) AND that a notification produced a visible Toast in the
+  # window. The notifications daemon owns a name on the session bus, so the test
+  # runs under dbus-run-session; icon themes populate the dock. This lane
+  # exercises the windowed backend end-to-end — the analogue of
+  # go-widgets/window's own live-xvfb lane — and is the CI counterpart of the
+  # on-VM capture used to verify the wiring.
+  live-shell-windowed:
+    name: live shell (windowed, Xvfb)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.4"
+      - name: Install Xvfb + capture + icon themes
+        run: sudo apt-get update && sudo apt-get install -y xvfb x11-apps imagemagick dbus adwaita-icon-theme hicolor-icon-theme
+      - name: Run the live windowed integration test under Xvfb
+        env:
+          DESKTOP_X11_INTEGRATION: "1"
+        run: |
+          xvfb-run -s "-screen 0 1024x768x24" \
+            dbus-run-session -- \
+            go test -tags=integration -run TestLiveWindowedX11 -v ./cmd/desktop/...
+      - name: Upload the captured window as a build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-shell-windowed
+          path: cmd/desktop/live-shell-windowed.png
+          if-no-files-found: warn

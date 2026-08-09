@@ -35,21 +35,39 @@ Composition/model logic is separated from raw rendering:
   a `Border` layout (menubar north, dock south, launcher west, file grid center)
   plus a floating `Toast` stack. State flows through `go-widgets/mvvm`
   (`Observable` search query → `ObservableList` results → the launcher).
+  `Scene.Widget()` wraps the whole thing — root plus the toast overlay — as one
+  backend-agnostic `toolkit.Widget` a windowing backend can drive.
 - **`cmd/desktop/`** — the native binary: scans the filesystem, composes the
-  scene and renders it.
+  scene and either opens a **real window** (the default) or renders it to a PNG
+  (`-capture`).
 
-go-widgets is a pure pixel-blitting toolkit, so the shell renders into an
-offscreen framebuffer; a host compositor presents it, and `-capture` writes it
-to a PNG — the headless "screenshot" path.
+go-widgets is a pure pixel-blitting toolkit. With no flags the shell opens a
+**real window** on the running display server via
+[`go-widgets/window`](https://github.com/go-widgets/window) — which auto-selects
+the pure-Go **Wayland** backend when `$WAYLAND_DISPLAY` is set, else the pure-Go
+**X11** backend — and drives the widget tree through its `Run` loop
+(resize → relayout, window close → quit). Notification toasts render as a
+floating overlay on top of the live shell. On a headless host, or with
+`-capture`, the shell renders into an offscreen framebuffer and `-capture`
+writes it to a PNG — the headless "screenshot" path.
+
+Below is the live X11 window (under Xvfb) showing the dock, launcher, file grid
+and a notification `Toast` — the [`live shell (windowed)` CI lane](.github/workflows/ci.yml)
+captures and pixel-asserts exactly this:
+
+![live desktop shell in a real X11 window](docs/live-shell-windowed-2026-08-09.png)
 
 ## Usage
 
 ```sh
-go run ./cmd/desktop -dir ~/Pictures -capture shell.png     # render to PNG
+go run ./cmd/desktop                                        # open a real window (X11/Wayland)
+go run ./cmd/desktop -dir ~/Pictures                        # windowed, file grid on a directory
+go run ./cmd/desktop -dir ~/Pictures -capture shell.png     # headless: render to PNG
 go run ./cmd/desktop -query fire                            # seed launcher filter
 go run ./cmd/desktop -launch org.mozilla.firefox            # expand Exec + launch
 
-# Notifications need a session bus (Linux):
+# Notifications need a session bus (Linux); the toast shows in the window:
+dbus-run-session -- go run ./cmd/desktop -notify "Build|Finished"
 dbus-run-session -- go run ./cmd/desktop -notify "Build|Finished" -capture toast.png
 ```
 

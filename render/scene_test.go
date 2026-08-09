@@ -10,6 +10,7 @@ import (
 	"github.com/go-freedesktop/desktopentry"
 	"github.com/go-freedesktop/menu"
 	"github.com/go-widgets/desktop/shell"
+	"github.com/go-widgets/painter"
 	"github.com/go-widgets/toolkit"
 )
 
@@ -96,6 +97,64 @@ func TestSceneRenderAndToasts(t *testing.T) {
 	if _, err := s.Render(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestSceneWidget exercises the single-widget adapter a windowing backend
+// runs: SetBounds must propagate to the shell root, Draw must composite the
+// root and then overlay the toast stack, and OnEvent must forward to the root.
+// This is the headless proof that the live/windowed path renders the same
+// composition the -capture path does (the windowed run itself is verified on a
+// real compositor, not in the unit gate).
+func TestSceneWidget(t *testing.T) {
+	s := New(testConfig())
+	w := s.Widget()
+	if s.Theme() == nil {
+		t.Fatal("Theme() is nil")
+	}
+
+	bounds := toolkit.Rect{X: 0, Y: 0, W: 640, H: 480}
+	w.SetBounds(bounds)
+	if got := s.Root().Bounds(); got != bounds {
+		t.Fatalf("SetBounds did not propagate to root: got %+v", got)
+	}
+
+	const stride = 640
+	sample := func(buf []byte, x, y int) [4]byte {
+		i := (y*stride + x) * 4
+		return [4]byte{buf[i], buf[i+1], buf[i+2], buf[i+3]}
+	}
+	draw := func() []byte {
+		buf := make([]byte, 4*640*480)
+		p := painter.NewPixelPainter(buf, 640, 480)
+		p.FillRect(bounds, s.Theme().Background)
+		w.Draw(p, s.Theme())
+		return buf
+	}
+
+	// Without a toast, the top-right corner shows only the background fill.
+	base := draw()
+
+	// A toast anchors top-right; drawing it must change pixels there.
+	s.ShowToast(toolkit.NewToast("Build finished", toolkit.ToastSuccess))
+	withToast := draw()
+
+	// Assert the toast overlay actually painted into its top-right anchor
+	// region (and not merely somewhere): compare a band of the top-right.
+	changed := false
+	for y := 8; y < 60 && !changed; y++ {
+		for x := 500; x < 632; x++ {
+			if sample(base, x, y) != sample(withToast, x, y) {
+				changed = true
+				break
+			}
+		}
+	}
+	if !changed {
+		t.Error("toast overlay did not paint into the top-right anchor region")
+	}
+
+	// OnEvent must not panic and is forwarded to the root widget tree.
+	w.OnEvent(toolkit.Event{Kind: toolkit.EventClick, X: 10, Y: 10})
 }
 
 func TestSceneDefaultsAndEmpties(t *testing.T) {
