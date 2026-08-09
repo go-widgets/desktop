@@ -42,11 +42,13 @@ Composition/model logic is separated from raw rendering:
   (`-capture`).
 - **`source/`** — the two [`shell.AppSource`](shell/source.go) implementations
   behind the shell (see below).
-- **`wasmhost/`** — the **wasmbox (wasmdesk) backend**: drives the widget tree as
-  a browser wasmbox client, the js/wasm analogue of `go-widgets/window`.
 - **`clients/desktop/`** — the **wasmdesk client** (`js/wasm`): the exact same
   shell composed from the embedded source and presented to the wasmdesk
-  compositor.
+  compositor. It opens its surface through the **same** `window.Open()` the native
+  binary uses — on `js/wasm` that returns
+  [`go-widgets/window`](https://github.com/go-widgets/window)'s wasmbox client
+  backend, so there is one windowing code path, native and browser (no
+  desktop-local backend to maintain).
 
 ## Same source, two targets
 
@@ -59,16 +61,31 @@ are two implementations in [`source/`](source), and `render.New` composes the
 | Target | Source | Data | Backend |
 |---|---|---|---|
 | Native (Linux desktop) | `source.NewXDG` | real XDG filesystem (`desktopentry.Scan`, icontheme, mime/mimeapps, `menu.Load`, go-thumbnail) | `go-widgets/window` (X11/Wayland) |
-| Browser (wasmdesk) | `source.NewEmbedded` | a curated app set + icons + virtual files from an `embed.FS` — **no filesystem** | `wasmhost` (wasmbox client) |
+| Browser (wasmdesk) | `source.NewEmbedded` | a curated app set + icons + virtual files from an `embed.FS` — **no filesystem** | `go-widgets/window` (wasmbox client) |
 
-So the browser desktop is not a mock: it is the same `shell` model logic and the
-same `render` widget tree, populated from data baked into the wasm.
+So the browser desktop is not a mock: it is the same `shell` model logic, the
+same `render` widget tree, AND the same `window.Open()`/`Backend.Run()` windowing
+path as the native binary — only `source.NewXDG`→`source.NewEmbedded` differs.
+The wasmbox client wire (`hello`/`welcome`/`commit`/`input` over the compositor's
+`MessagePort` + `SharedArrayBuffer`) lives entirely inside `go-widgets/window`,
+so this repo hosts no duplicate backend.
 
-The browser (wasmdesk) client rendering inside a headless-Chromium wasmbox
-harness — dock, launcher, application menu and file grid (with real thumbnails),
-all from the embedded source, presented over the real wasmbox
-`hello`/`welcome`/`commit`/`input` wire (see
-[`clients/desktop/harness`](clients/desktop/harness)):
+**Primary browser proof — the REAL wasmdesk desktop.** The shell runs as a
+genuine external client of the actual wasmdesk/wasmbox Ruby compositor (the
+pure-Go `rbgo` interpreter running `compositor/*.rb`, baked into `wasmbox.wasm`),
+spawned via the documented `globalThis.wasmboxSpawnExternal(...)` hook and served
+same-origin through a symlink overlay — **the wasmbox repository is never
+modified**. Playwright locates the window by its live focused rect
+(`__wasmboxFocusedRect`), asserts the shell (dock, launcher, application menu,
+file grid) rendered into the composited desktop, and round-trips one real click.
+See [`clients/desktop/harness/probe-real-desktop.mjs`](clients/desktop/harness/probe-real-desktop.mjs)
+and [`clients/desktop/harness/README-real-desktop.md`](clients/desktop/harness/README-real-desktop.md):
+
+![desktop shell as a real external client of the wasmdesk Ruby desktop](docs/browser-wasmdesk-real-desktop-2026-08-09.png)
+
+**Deterministic CI floor.** The protocol-faithful harness
+([`clients/desktop/harness`](clients/desktop/harness)) drives the identical
+wire/SAB/input assertions with no Ruby compositor build, so it gates anywhere:
 
 ![desktop shell as a wasmdesk client in the browser](docs/browser-wasmdesk-initial-2026-08-09.png)
 

@@ -12,8 +12,9 @@ import (
 
 // HostRoot builds a damage-aware root over the shell's widget tree for the
 // windowed backend's incremental-present path (github.com/go-widgets/window
-// v0.4.0 presents only the rectangles a scene.HostRoot reports, instead of the
-// whole surface, every frame).
+// presents only the rectangles a scene.HostRoot reports, instead of the
+// whole surface, every frame — on X11/Wayland natively and in the wasmbox
+// browser client alike).
 //
 // The returned *scene.HostRoot is a drop-in toolkit.Widget: handed to
 // window.Backend.Run it drives RenderDamaged (small-rect present); handed to a
