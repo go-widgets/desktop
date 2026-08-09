@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>wasmbox protocol-faithful harness — go-widgets/desktop client</title>
+<style>
+  body { margin: 0; background: #1b1e24; color: #cbd5e1; font: 13px system-ui, sans-serif; }
+  header { padding: 8px 12px; background: #0f1115; }
+  #stage { padding: 16px; }
+  /* The "desktop" surface the compositor blits the client into. */
+  canvas { box-shadow: 0 8px 40px rgba(0,0,0,.6); border-radius: 6px; background: #000; }
+  code { color: #7dd3fc; }
+</style>
+</head>
+<body>
+<header>
+  wasmbox protocol-faithful harness — real <code>clients/sdk/sdk.js</code> + real Go/wasm
+  <code>go-widgets/desktop</code> client, driven over the real hello/welcome/commit/input wire.
+</header>
+<div id="stage"><canvas id="screen" width="960" height="600"></canvas></div>
+<script>
+"use strict";
+// A minimal, protocol-faithful wasmbox compositor: it does exactly what the
+// real Ruby compositor does on the wire for a single external client —
+// hand it a private MessagePort, answer its hello with a welcome, blit each
+// commit's shared surface onto the desktop canvas, and forward input events —
+// but without the Ruby window-manager/chrome. This is the honest browser proof
+// when the full Ruby desktop cannot be booted with a newly-added client (that
+// would require modifying the read-only wasmbox boot-config).
+const canvas = document.getElementById("screen");
+const ctx = canvas.getContext("2d");
+
+const state = { commits: 0, welcomed: false, w: 0, h: 0, sab: null, lastColors: 0, inputSent: false, error: null };
+window.__hstate = state;
+
+const WIN_ID = 1;
+const worker = new Worker("clients/desktop/worker.js"); // classic worker: importScripts sdk.js + wasm_exec.js
+worker.onerror = (e) => { state.error = String(e.message || e); };
+
+// Hand the worker its private port (the compositor->client wire), exactly as
+// the Ruby compositor's step-C.1 handoff.
+const mc = new MessageChannel();
+mc.port1.onmessage = onClientMessage;
+mc.port1.start();
+worker.postMessage({ type: "__wasmbox_port", port: mc.port2 }, [mc.port2]);
+
+function onClientMessage(ev) {
+  const m = ev.data;
+  if (!m || typeof m.type !== "string") return;
+  switch (m.type) {
+    case "hello":     onHello(m);   break;
+    case "commit":    onCommit(m);  break;
+    // notify / tray / set_title etc. are desktop-global; the harness ignores
+    // them (a real compositor would render them as chrome).
+  }
+}
+
+function onHello(m) {
+  state.sab = m.sab;         // the client's SharedArrayBuffer surface
+  state.w = m.w; state.h = m.h;
+  canvas.width = m.w; canvas.height = m.h;
+  // Answer with a welcome granting the requested size (FIFO-matched by the SDK).
+  mc.port1.postMessage({ type: "welcome", window_id: WIN_ID, granted_w: m.w, granted_h: m.h });
+  state.welcomed = true;
+}
+
+function onCommit(m) {
+  if (!state.sab) return;
+  // Copy the shared surface into a private buffer and blit it. (The client has
+  // already closed its seqlock at commit, so the frame is whole.)
+  const view = new Uint8ClampedArray(state.sab);
+  const copy = new Uint8ClampedArray(view);       // detach from the SAB for ImageData
+  const img = new ImageData(copy, state.w, state.h);
+  ctx.putImageData(img, 0, 0);
+  state.commits++;
+  state.lastColors = countColors(copy);
+}
+
+// Driver-controlled input, so the harness can capture a true before/after: post
+// an input event over the wire exactly as the compositor forwards a real one.
+function sendInput(event) {
+  state.inputSent = true;
+  mc.port1.postMessage({ type: "input", window_id: WIN_ID, event });
+}
+window.__input = sendInput;
+
+function countColors(px) {
+  const seen = new Set();
+  for (let i = 0; i < px.length; i += 4) {
+    seen.add((px[i] << 16) | (px[i + 1] << 8) | px[i + 2]);
+    if (seen.size > 4000) break;
+  }
+  return seen.size;
+}
+</script>
+</body>
+</html>

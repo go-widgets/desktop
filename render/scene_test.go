@@ -180,13 +180,14 @@ func TestElideAndIconName(t *testing.T) {
 	if got := elide("a-very-long-filename-here.txt", 10); len([]rune(got)) != 10 {
 		t.Errorf("elide long = %q (len %d)", got, len([]rune(got)))
 	}
-	if n := iconNameFor(shell.FileItem{IsDir: true}, nil); n != "folder" {
+	s := New(Config{})
+	if n := s.iconNameFor(shell.FileItem{IsDir: true}); n != "folder" {
 		t.Errorf("dir icon = %q", n)
 	}
-	if n := iconNameFor(shell.FileItem{Mime: ""}, nil); n != "text-x-generic" {
+	if n := s.iconNameFor(shell.FileItem{Mime: ""}); n != "text-x-generic" {
 		t.Errorf("empty-mime icon = %q", n)
 	}
-	if n := iconNameFor(shell.FileItem{Mime: "text/plain"}, nil); n != "text-plain" {
+	if n := s.iconNameFor(shell.FileItem{Mime: "text/plain"}); n != "text-plain" {
 		t.Errorf("mime icon = %q", n)
 	}
 }

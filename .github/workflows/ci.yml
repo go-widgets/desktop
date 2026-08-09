@@ -145,3 +145,55 @@ jobs:
           name: live-shell-windowed
           path: cmd/desktop/live-shell-windowed.png
           if-no-files-found: warn
+
+  # Portability gate: the shell + its browser data source (embed.FS) + the
+  # wasmbox backend + the wasmdesk client must all compile to js/wasm, and the
+  # client wasm must link. This is the "same source, second target" half of the
+  # design — the native binary is covered by the lanes above.
+  js-build:
+    name: build js/wasm (wasmdesk client)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.4"
+      - name: Cross-compile the portable packages + client for js/wasm
+        run: GOOS=js GOARCH=wasm CGO_ENABLED=0 go build ./shell/... ./source/... ./render/... ./wasmhost/... ./clients/...
+      - name: Link the wasmdesk client wasm
+        run: |
+          GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o desktop.wasm ./clients/desktop/
+          ls -l desktop.wasm
+
+  # Browser (wasmdesk) proof: build the desktop client to wasm, serve it with the
+  # REAL wasmbox client SDK + dev server (a read-only clone of wasmdesk/wasmbox)
+  # under COOP/COEP, and drive it with Playwright in headless Chromium — asserting
+  # the client renders its scene (from the embedded source) over the real
+  # hello/welcome/commit/input wire and that one input round-trip repaints. The
+  # composited canvas screenshots are uploaded. wasmbox is only cloned to run it;
+  # it is never modified. See clients/desktop/harness/.
+  browser-wasmdesk:
+    name: browser proof (wasmdesk, Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.4"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright + Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i -D playwright
+          npx playwright install --with-deps chromium
+      - name: Run the wasmbox browser proof
+        run: bash clients/desktop/harness/run.sh
+      - name: Upload the composited canvas captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-wasmdesk
+          path: docs/browser-wasmdesk-*.png
+          if-no-files-found: warn

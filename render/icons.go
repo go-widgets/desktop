@@ -10,11 +10,13 @@
 package render
 
 import (
+	"bytes"
 	"image"
 	"image/draw"
 	_ "image/gif"  // register GIF decoder for icon/thumbnail loading
 	_ "image/jpeg" // register JPEG decoder
 	_ "image/png"  // register PNG decoder
+	"io"
 	"os"
 	"path/filepath"
 
@@ -26,17 +28,24 @@ import (
 const DefaultIconSize = 48
 
 // IconLoader resolves icon names (or absolute paths) to go-widgets Image
-// widgets through an XDG icon theme, rasterizing PNG/JPEG/GIF icons and falling
-// back to a solid placeholder when an icon is missing or cannot be decoded
-// (e.g. an SVG-only icon). Results are cached per name.
+// widgets, rasterizing PNG/JPEG/GIF icons and falling back to a solid
+// placeholder when an icon is missing or cannot be decoded (e.g. an SVG-only
+// icon). Results are cached per name.
+//
+// It has two interchangeable resolution modes: the native mode resolves names
+// through an XDG icon theme and reads the file (NewIconLoader), while the
+// portable mode resolves the encoded bytes through a supplied function
+// (NewIconLoaderFunc) — the seam an embed.FS-backed shell.AppSource plugs into,
+// so the exact same rendering path runs in a browser with no filesystem.
 type IconLoader struct {
-	theme       *icontheme.Theme
+	theme       *icontheme.Theme                 // native mode (nil in bytes mode)
+	bytesFn     func(name string) ([]byte, bool) // portable mode (nil in theme mode)
 	size, scale int
 	cache       map[string]*toolkit.Image
 }
 
 // NewIconLoader builds a loader for the named icon theme (defaulting to
-// hicolor) at the given nominal size.
+// hicolor) at the given nominal size — the native, filesystem-backed mode.
 func NewIconLoader(themeName string, size int) *IconLoader {
 	if themeName == "" {
 		themeName = icontheme.HicolorTheme
@@ -49,6 +58,23 @@ func NewIconLoader(themeName string, size int) *IconLoader {
 		size:  size,
 		scale: 1,
 		cache: map[string]*toolkit.Image{},
+	}
+}
+
+// NewIconLoaderFunc builds a loader that resolves an icon name (or absolute
+// path / virtual key) to encoded image bytes through fn — the portable mode
+// used by an embed.FS-backed source in the browser, where there is no XDG icon
+// theme to scan. A nil result from fn yields the placeholder swatch, exactly as
+// a theme miss does in native mode.
+func NewIconLoaderFunc(fn func(name string) ([]byte, bool), size int) *IconLoader {
+	if size <= 0 {
+		size = DefaultIconSize
+	}
+	return &IconLoader{
+		bytesFn: fn,
+		size:    size,
+		scale:   1,
+		cache:   map[string]*toolkit.Image{},
 	}
 }
 
@@ -65,10 +91,21 @@ func (l *IconLoader) Image(name string) *toolkit.Image {
 
 // load resolves name to pixels or a placeholder.
 func (l *IconLoader) load(name string) *toolkit.Image {
-	path := name
 	if name == "" {
 		return placeholder(l.size)
 	}
+	if l.bytesFn != nil {
+		b, ok := l.bytesFn(name)
+		if !ok {
+			return placeholder(l.size)
+		}
+		pix, w, h, err := decodeRGBABytes(b)
+		if err != nil {
+			return placeholder(l.size)
+		}
+		return toolkit.NewImageFit(pix, w, h)
+	}
+	path := name
 	if !filepath.IsAbs(name) {
 		p, err := l.theme.FindIcon([]string{name, "application-x-executable"}, l.size, l.scale)
 		if err != nil {
@@ -90,7 +127,19 @@ func decodeRGBA(path string) ([]byte, int, int, error) {
 		return nil, 0, 0, err
 	}
 	defer f.Close()
-	src, _, err := image.Decode(f)
+	return decodeReader(f)
+}
+
+// decodeRGBABytes decodes encoded image bytes into tightly packed RGBA pixels —
+// the portable counterpart of decodeRGBA for a source that serves icon bytes
+// directly (embed.FS) rather than a filesystem path.
+func decodeRGBABytes(b []byte) ([]byte, int, int, error) {
+	return decodeReader(bytes.NewReader(b))
+}
+
+// decodeReader decodes an image stream into tightly packed RGBA pixels.
+func decodeReader(r io.Reader) ([]byte, int, int, error) {
+	src, _, err := image.Decode(r)
 	if err != nil {
 		return nil, 0, 0, err
 	}

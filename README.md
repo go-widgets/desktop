@@ -40,6 +40,37 @@ Composition/model logic is separated from raw rendering:
 - **`cmd/desktop/`** — the native binary: scans the filesystem, composes the
   scene and either opens a **real window** (the default) or renders it to a PNG
   (`-capture`).
+- **`source/`** — the two [`shell.AppSource`](shell/source.go) implementations
+  behind the shell (see below).
+- **`wasmhost/`** — the **wasmbox (wasmdesk) backend**: drives the widget tree as
+  a browser wasmbox client, the js/wasm analogue of `go-widgets/window`.
+- **`clients/desktop/`** — the **wasmdesk client** (`js/wasm`): the exact same
+  shell composed from the embedded source and presented to the wasmdesk
+  compositor.
+
+## Same source, two targets
+
+The shell's data is abstracted behind one seam,
+[`shell.AppSource`](shell/source.go): installed apps, the categorized menu, the
+directory listing, "open with" resolution, icon bytes and thumbnail keys. There
+are two implementations in [`source/`](source), and `render.New` composes the
+**identical** Scene from either:
+
+| Target | Source | Data | Backend |
+|---|---|---|---|
+| Native (Linux desktop) | `source.NewXDG` | real XDG filesystem (`desktopentry.Scan`, icontheme, mime/mimeapps, `menu.Load`, go-thumbnail) | `go-widgets/window` (X11/Wayland) |
+| Browser (wasmdesk) | `source.NewEmbedded` | a curated app set + icons + virtual files from an `embed.FS` — **no filesystem** | `wasmhost` (wasmbox client) |
+
+So the browser desktop is not a mock: it is the same `shell` model logic and the
+same `render` widget tree, populated from data baked into the wasm.
+
+The browser (wasmdesk) client rendering inside a headless-Chromium wasmbox
+harness — dock, launcher, application menu and file grid (with real thumbnails),
+all from the embedded source, presented over the real wasmbox
+`hello`/`welcome`/`commit`/`input` wire (see
+[`clients/desktop/harness`](clients/desktop/harness)):
+
+![desktop shell as a wasmdesk client in the browser](docs/browser-wasmdesk-initial-2026-08-09.png)
 
 go-widgets is a pure pixel-blitting toolkit. With no flags the shell opens a
 **real window** on the running display server via
@@ -65,6 +96,11 @@ go run ./cmd/desktop -dir ~/Pictures                        # windowed, file gri
 go run ./cmd/desktop -dir ~/Pictures -capture shell.png     # headless: render to PNG
 go run ./cmd/desktop -query fire                            # seed launcher filter
 go run ./cmd/desktop -launch org.mozilla.firefox            # expand Exec + launch
+go run ./cmd/desktop -embedded -capture browser.png         # the exact scene the wasmdesk client shows
+
+# Browser (wasmdesk) client:
+GOOS=js GOARCH=wasm go build -o desktop.wasm ./clients/desktop   # build the wasm client
+clients/desktop/harness/run.sh                                   # prove it in a real headless browser
 
 # Notifications need a session bus (Linux); the toast shows in the window:
 dbus-run-session -- go run ./cmd/desktop -notify "Build|Finished"
