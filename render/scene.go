@@ -42,14 +42,24 @@ type Scene struct {
 	fileModel *mvvm.ObservableList[shell.FileItem]
 
 	// widgets.
-	root     *toolkit.Border
-	dock     *toolkit.HBox
-	launcher *toolkit.ListBox
-	grid     *virtual.VirtualGrid[shell.FileItem]
-	menubar  *toolkit.MenuBar
+	root          *toolkit.Border
+	dock          *toolkit.HBox
+	launcher      *toolkit.ListBox
+	launcherFrame *toolkit.Frame
+	grid          *virtual.VirtualGrid[shell.FileItem]
+	gridFrame     *toolkit.Frame
+	menubar       *toolkit.MenuBar
 
 	dockCount int
 	toasts    []*toolkit.Toast
+
+	// onLauncherChanged / onToastsChanged are the incremental-present hooks the
+	// windowed HostRoot installs (nil on the -capture / plain-Widget paths):
+	// they fire when the launcher's result list or the toast stack mutates, so
+	// the damage-aware root can invalidate exactly the region that changed. See
+	// (*Scene).HostRoot in host.go.
+	onLauncherChanged func()
+	onToastsChanged   func()
 
 	// reusable per-cell widgets for the file grid.
 	cellIcon  *toolkit.Image
@@ -112,14 +122,53 @@ func (s *Scene) build() {
 		s.drawCell,
 	)
 
+	s.launcherFrame = toolkit.NewFrame(s.launcher)
+	s.gridFrame = toolkit.NewFrame(s.grid)
+
 	s.root = toolkit.NewBorder()
 	s.root.North = s.menubar
 	s.root.NorthSize = toolkit.MenuBarH
 	s.root.South = s.dock
 	s.root.SouthSize = DefaultIconSize + 12
-	s.root.West = toolkit.NewFrame(s.launcher)
+	s.root.West = s.launcherFrame
 	s.root.WestSize = 220
-	s.root.Center = toolkit.NewFrame(s.grid)
+	s.root.Center = s.gridFrame
+}
+
+// regions returns the shell root's non-nil border regions in the border's own
+// draw/hit order (North, South, West, East, Center) — exactly what
+// (*toolkit.Border).Draw paints (this shell sets no splitters, so there are no
+// splitter handles to reproduce). The incremental HostRoot exposes these as its
+// scene children so a per-region invalidation repaints only that region.
+func (s *Scene) regions() []toolkit.Widget {
+	out := make([]toolkit.Widget, 0, 5)
+	for _, w := range []toolkit.Widget{s.root.North, s.root.South, s.root.West, s.root.East, s.root.Center} {
+		if w != nil {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// anchorToasts lays each toast into its stacked top-right slot within b, so its
+// Bounds() reflects where Draw will paint it (AnchorIn sets the toast's bounds).
+// Both the full-surface composite and the incremental scene read these bounds.
+func (s *Scene) anchorToasts(b toolkit.Rect) {
+	for i, t := range s.toasts {
+		t.AnchorIn(b, toolkit.TopRight, i)
+	}
+}
+
+// drawComposited paints the shell root then overlays the toast stack within b —
+// the single full-surface composite shared by the plain-Widget adapter and the
+// HostRoot full-repaint fallback, so the two paths cannot drift.
+func (s *Scene) drawComposited(p painter.Painter, th *toolkit.Theme, b toolkit.Rect) {
+	s.root.SetBounds(b)
+	s.root.Draw(p, th)
+	s.anchorToasts(b)
+	for _, t := range s.toasts {
+		t.Draw(p, th)
+	}
 }
 
 // appsSlice returns the indexed apps (empty when no index was supplied).
@@ -140,13 +189,19 @@ func (s *Scene) applyQuery() {
 	s.results.Append(out...)
 }
 
-// syncLauncher mirrors the results list into the launcher's item labels.
+// syncLauncher mirrors the results list into the launcher's item labels, then
+// (on the incremental path) invalidates the launcher region so only the west
+// strip repaints. The hook is nil during build's initial seed and on the
+// -capture / plain-Widget paths.
 func (s *Scene) syncLauncher() {
 	items := make([]string, s.results.Len())
 	for i := 0; i < s.results.Len(); i++ {
 		items[i] = s.results.At(i).Label()
 	}
 	s.launcher.Items = items
+	if s.onLauncherChanged != nil {
+		s.onLauncherChanged()
+	}
 }
 
 // appMenu builds the top-level application menu: one submenu per category.
@@ -220,17 +275,33 @@ func elide(s string, max int) string {
 // SetQuery updates the launcher search query, driving the results + launcher.
 func (s *Scene) SetQuery(q string) { s.query.Set(q) }
 
-// ShowToast adds a toast to the floating stack (used to present notifications).
+// ShowToast adds a toast to the floating stack (used to present notifications),
+// then fires the toast-changed hook so the incremental path repaints the toast
+// overlay. A nil toast is ignored (and never fires the hook).
 func (s *Scene) ShowToast(t *toolkit.Toast) {
 	if t == nil {
 		return
 	}
 	t.Visible = true
 	s.toasts = append(s.toasts, t)
+	s.toastsChanged()
 }
 
-// SetToasts replaces the floating toast stack (e.g. from a notification daemon).
-func (s *Scene) SetToasts(ts []*toolkit.Toast) { s.toasts = ts }
+// SetToasts replaces the floating toast stack (e.g. from a notification daemon)
+// and fires the toast-changed hook.
+func (s *Scene) SetToasts(ts []*toolkit.Toast) {
+	s.toasts = ts
+	s.toastsChanged()
+}
+
+// toastsChanged notifies the incremental path (if installed) that the toast
+// stack mutated — appeared, ticked, reflowed or dismissed. The hook re-anchors
+// the stack and damages it; it is nil on the -capture / plain-Widget paths.
+func (s *Scene) toastsChanged() {
+	if s.onToastsChanged != nil {
+		s.onToastsChanged()
+	}
+}
 
 // DockCount is the number of icons in the dock.
 func (s *Scene) DockCount() int { return s.dockCount }
@@ -289,13 +360,7 @@ func (w *sceneWidget) SetBounds(r toolkit.Rect) {
 // Draw paints the shell root then overlays the floating toast stack, anchored
 // top-right within the widget's bounds exactly as Scene.Render does.
 func (w *sceneWidget) Draw(p painter.Painter, th *toolkit.Theme) {
-	b := w.Bounds()
-	w.sc.root.SetBounds(b)
-	w.sc.root.Draw(p, th)
-	for i, t := range w.sc.toasts {
-		t.AnchorIn(b, toolkit.TopRight, i)
-		t.Draw(p, th)
-	}
+	w.sc.drawComposited(p, th, w.Bounds())
 }
 
 // OnEvent forwards input to the shell root (the toast overlay is passive).
@@ -313,16 +378,9 @@ func (s *Scene) Render() (*image.RGBA, error) {
 	}
 	buf := make([]byte, 4*w*h)
 	p := painter.NewPixelPainter(buf, w, h)
-	p.FillRect(toolkit.Rect{X: 0, Y: 0, W: w, H: h}, s.theme.Background)
-
 	host := toolkit.Rect{X: 0, Y: 0, W: w, H: h}
-	s.root.SetBounds(host)
-	s.root.Draw(p, s.theme)
-
-	for i, t := range s.toasts {
-		t.AnchorIn(host, toolkit.TopRight, i)
-		t.Draw(p, s.theme)
-	}
+	p.FillRect(host, s.theme.Background)
+	s.drawComposited(p, s.theme, host)
 
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	copy(img.Pix, buf)
