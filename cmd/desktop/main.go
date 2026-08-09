@@ -17,6 +17,13 @@
 // offscreen framebuffer; -capture writes that framebuffer to a PNG (the
 // headless "screenshot" path used for autonomous visual verification), and a
 // host compositor would otherwise present it.
+//
+// This is the NATIVE binary (X11/Wayland via go-widgets/window, real XDG scan).
+// The browser (wasmdesk) build lives in ../../clients/desktop, so this command
+// is excluded from js/wasm.
+//
+//go:build !js
+
 package main
 
 import (
@@ -29,13 +36,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-freedesktop/desktopentry"
-	"github.com/go-freedesktop/menu"
-	"github.com/go-freedesktop/mime"
-	"github.com/go-freedesktop/mimeapps"
-	"github.com/go-thumbnail/thumbnail"
 	"github.com/go-widgets/desktop/render"
 	"github.com/go-widgets/desktop/shell"
+	"github.com/go-widgets/desktop/source"
 	"github.com/go-widgets/toolkit"
 )
 
@@ -55,6 +58,7 @@ type options struct {
 	width     int
 	height    int
 	light     bool
+	embedded  bool
 }
 
 // run parses args, builds the shell scene and performs the requested action,
@@ -72,6 +76,7 @@ func run(args []string, errw io.Writer) int {
 	fs.IntVar(&o.width, "w", 960, "render width")
 	fs.IntVar(&o.height, "h", 600, "render height")
 	fs.BoolVar(&o.light, "light", false, "use the light theme")
+	fs.BoolVar(&o.embedded, "embedded", false, "use the embedded (browser) app source instead of scanning the filesystem — renders the exact scene the wasmdesk client shows")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -115,28 +120,21 @@ func run(args []string, errw io.Writer) int {
 	return 0
 }
 
-// buildScene scans the filesystem and composes the shell Scene, returning it
-// alongside the app index (needed by -launch).
+// buildScene scans the filesystem through the native XDG source and composes
+// the shell Scene, returning it alongside the source (whose app index -launch
+// needs). The source is the portable seam: swapping source.NewXDG for
+// source.NewEmbedded is the whole difference between the native desktop and the
+// browser (wasmdesk) client — the render.New call below is identical.
 func buildScene(o options) (*render.Scene, *shell.AppIndex) {
-	apps := shell.NewAppIndex(desktopentry.Scan())
-
-	var menuModel *shell.MenuModel
-	if tree, err := menu.Load(); err == nil {
-		menuModel = shell.NewMenuModel(tree)
+	var src shell.AppSource
+	if o.embedded {
+		src = source.NewEmbedded()
 	} else {
-		menuModel = shell.NewMenuModel(nil)
-	}
-
-	db, err := mime.Load()
-	if err != nil {
-		db = mime.New()
-	}
-	resolver := shell.NewResolver(db, mimeapps.Load())
-
-	var dir *shell.Dir
-	if d, err := shell.ListDir(o.dir); err == nil {
-		d.Classify(resolver)
-		dir = d
+		src = source.NewXDG(source.XDGOptions{
+			Dir:       o.dir,
+			IconTheme: o.iconTheme,
+			IconSize:  render.DefaultIconSize,
+		})
 	}
 
 	theme := toolkit.DefaultDark()
@@ -145,19 +143,15 @@ func buildScene(o options) (*render.Scene, *shell.AppIndex) {
 	}
 
 	sc := render.New(render.Config{
-		Apps:        apps,
-		Menu:        menuModel,
-		Dir:         dir,
-		Thumbnailer: shell.NewThumbnailer(thumbnail.Normal),
-		Icons:       render.NewIconLoader(o.iconTheme, render.DefaultIconSize),
-		Theme:       theme,
-		Width:       o.width,
-		Height:      o.height,
+		Source: src,
+		Theme:  theme,
+		Width:  o.width,
+		Height: o.height,
 	})
 	if o.query != "" {
 		sc.SetQuery(o.query)
 	}
-	return sc, apps
+	return sc, src.Apps()
 }
 
 // launchByID resolves a desktop-file id in the index and starts it. This is the
