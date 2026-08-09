@@ -13,6 +13,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/go-thumbnail/thumbnail"
@@ -51,15 +52,16 @@ func xdgFixture(t *testing.T) (files string) {
 	return files
 }
 
-// TestXDGScansFilesystem asserts the native source scans real apps + files and
-// composes the same Scene the embedded source does.
+// TestXDGScansFilesystem asserts the native source scans real files and
+// composes the same Scene the embedded source does. The application scan
+// (desktopentry.Scan) honors XDG_DATA_HOME/DIRS only on Linux; other platforms
+// resolve apps from OS-native directories the fixture cannot control, so the
+// app-count assertion is Linux-gated while the directory/menu/resolver seams —
+// which the fixture fully controls — are checked everywhere.
 func TestXDGScansFilesystem(t *testing.T) {
 	files := xdgFixture(t)
 	x := NewXDG(XDGOptions{Dir: files, IconSize: 32})
 
-	if x.Apps().Len() < 2 {
-		t.Errorf("Apps().Len() = %d, want >= 2 (scanned .desktop files)", x.Apps().Len())
-	}
 	if x.Menu() == nil {
 		t.Error("Menu() is nil")
 	}
@@ -73,11 +75,19 @@ func TestXDGScansFilesystem(t *testing.T) {
 
 	// The same render.New call the embedded/browser path uses.
 	sc := render.New(render.Config{Source: x, Width: 400, Height: 300})
-	if sc.DockCount() == 0 || sc.AppCount() < 2 {
-		t.Errorf("scene dock=%d apps=%d, want populated", sc.DockCount(), sc.AppCount())
-	}
 	if sc.FileCount() != 2 {
 		t.Errorf("file grid = %d, want 2", sc.FileCount())
+	}
+
+	if runtime.GOOS != "linux" {
+		t.Logf("skipping XDG app-scan assertions on %s (desktopentry.Scan uses native app dirs there)", runtime.GOOS)
+		return
+	}
+	if x.Apps().Len() < 2 {
+		t.Errorf("Apps().Len() = %d, want >= 2 (scanned .desktop files)", x.Apps().Len())
+	}
+	if sc.DockCount() == 0 || sc.AppCount() < 2 {
+		t.Errorf("scene dock=%d apps=%d, want populated", sc.DockCount(), sc.AppCount())
 	}
 }
 
