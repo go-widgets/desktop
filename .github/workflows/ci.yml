@@ -93,6 +93,24 @@ jobs:
       - name: Test under qemu (${{ matrix.goarch }})
         run: CGO_ENABLED=0 GOARCH=${{ matrix.goarch }} go test -exec=${{ matrix.qemu }} ./...
 
+  # Incremental-present correctness proof: drive the shell's scene.HostRoot (the
+  # exact root the windowed backend runs) over a scripted interaction and assert
+  # every incremental frame is BYTE-IDENTICAL to a full repaint of the same state
+  # (the -capture compositor is the oracle), then measure the presented damage —
+  # a launcher keystroke repaints only the west region, a grid scroll only the
+  # centre — proving the small-rect path never drops a pixel. Headless + fast, so
+  # it runs on every push; the numbers print in the log.
+  incremental-render-equality:
+    name: live shell (incremental)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.4"
+      - name: Byte-identity + damage-measurement proof
+        run: CGO_ENABLED=0 go test -run TestHostRootPixelIdentityAndDamage -v ./render/...
+
   # Live windowed proof: open the desktop shell in a REAL X11 window (via
   # github.com/go-widgets/window, the same path `desktop` with no flags uses)
   # under Xvfb, capture the server framebuffer with ImageMagick's `import`, and

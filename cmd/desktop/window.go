@@ -53,7 +53,13 @@ func runWindow(o options, sc *render.Scene, errw io.Writer) error {
 		return err
 	}
 	defer be.Close()
-	return be.Run(sc.Widget())
+	// Hand the backend the shell's damage-aware root (scene.HostRoot): window
+	// v0.4.0 type-asserts it for RenderDamaged and presents only the rectangles
+	// the shell reports changed each frame, instead of blitting the whole
+	// surface. It is pixel-identical to the full composite by construction (and
+	// still full-repaints correctly on a damage-unaware host), so the live
+	// window shows exactly what -capture writes — now incrementally.
+	return be.Run(sc.HostRoot())
 }
 
 // displayAvailable reports whether a display server is named in the
