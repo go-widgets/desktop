@@ -52,9 +52,9 @@ func TestNewAppIndexDedupSortAndFilter(t *testing.T) {
 	entries := []*desktopentry.Entry{
 		{ID: "z", Name: "Zebra", Exec: "z"},
 		{ID: "a", Name: "apple", Exec: "a"},
-		{ID: "a", Name: "apple-dup", Exec: "a2"}, // duplicate id -> dropped
-		{ID: "", Name: "beta", Exec: "b"},        // empty id -> no dedup, kept
-		{ID: "", Name: "beta2", Exec: "b2"},      // empty id -> kept too
+		{ID: "a", Name: "apple-dup", Exec: "a2"},            // duplicate id -> dropped
+		{ID: "", Name: "beta", Exec: "b"},                   // empty id -> no dedup, kept
+		{ID: "", Name: "beta2", Exec: "b2"},                 // empty id -> kept too
 		{ID: "link", Name: "Link", Type: "Link", Exec: "l"}, // not launchable
 		nil,
 	}
