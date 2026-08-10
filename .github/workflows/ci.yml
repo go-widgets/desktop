@@ -146,6 +146,38 @@ jobs:
           path: cmd/desktop/live-shell-windowed.png
           if-no-files-found: warn
 
+  # Native-macOS proof: compose the shell from the REAL macOS application tree
+  # (source.NewDarwin scans /Applications) and drive the EXACT damage-aware root
+  # the Cocoa/AppKit backend runs (scene.HostRoot, what `desktop` with no flags
+  # hands to window.Backend.Run on darwin, github.com/go-widgets/window v0.6.0).
+  # It asserts from sampled pixels that the dock (real app icons) and launcher
+  # (real app names) carry content, that one synthesised hover is dispatched and
+  # its incremental damage is confined to the launcher region, and uploads the
+  # dated PNG. The pure-Go painter render runs headless — no window server /
+  # Screen-Recording permission needed — so it is deterministic on macos-latest;
+  # the live NSWindow open itself uses the same window.Open→Run path and is
+  # proven by running the binary on-device.
+  native-cocoa-shell:
+    name: native shell (cocoa capture)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.4"
+      - name: Capture the native-macOS shell + assert pixels/input
+        env:
+          DESKTOP_COCOA_CAPTURE: "1"
+          DESKTOP_COCOA_PNG: "docs/native-macos-shell-2026-08-10.png"
+        run: CGO_ENABLED=0 go test -tags=integration -run TestLiveCocoaShell -v ./cmd/desktop/...
+      - name: Upload the captured native shell as a build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-macos-shell
+          path: docs/native-macos-shell-2026-08-10.png
+          if-no-files-found: warn
+
   # Portability gate: the shell + its browser data source (embed.FS) + the
   # wasmbox backend + the wasmdesk client must all compile to js/wasm, and the
   # client wasm must link. This is the "same source, second target" half of the

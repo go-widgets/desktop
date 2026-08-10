@@ -34,6 +34,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/go-widgets/desktop/render"
@@ -45,7 +46,15 @@ import (
 // osExit is a seam over os.Exit so run's exit codes can be asserted in tests.
 var osExit = os.Exit
 
-func main() { osExit(run(os.Args[1:], os.Stderr)) }
+func main() {
+	// Pin the main goroutine to the process main OS thread. The macOS Cocoa/
+	// AppKit windowing backend (window.Open → cocoa.New/Run) requires all
+	// window and run-loop work on the main thread; locking here before any
+	// goroutine work keeps the interactive window path on it. It is harmless on
+	// X11/Wayland (they do not care which thread they run on).
+	runtime.LockOSThread()
+	osExit(run(os.Args[1:], os.Stderr))
+}
 
 // options are the parsed command-line flags.
 type options struct {

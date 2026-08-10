@@ -14,12 +14,14 @@ require (
 	github.com/go-widgets/mvvm v0.5.0
 	github.com/go-widgets/painter v0.3.0
 	github.com/go-widgets/toolkit v0.132.0
-	github.com/go-widgets/window v0.5.1
+	github.com/go-widgets/window v0.6.0
 )
 
 require (
 	github.com/adrg/xdg v0.5.3 // indirect
+	github.com/ebitengine/purego v0.10.2 // indirect
 	github.com/go-images/images v0.0.0-20260805203258-4b7a400612e8 // indirect
+	github.com/go-macos/objc v0.1.1 // indirect
 	github.com/go-opentype/bidi v0.2.1 // indirect
 	github.com/go-opentype/fonts v0.6.0 // indirect
 	github.com/go-opentype/opentype v0.5.0 // indirect
