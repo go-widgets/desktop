@@ -35,11 +35,19 @@ func (f *fakeBackend) Close() error     { return nil }
 func (f *fakeBackend) Size() (int, int) { return 0, 0 }
 func (f *fakeBackend) String() string   { return "fakeBackend" }
 
-// withDisplay makes displayAvailable() report true on non-darwin (darwin is
-// always true) so the windowed path is reached.
+// alwaysWindowed reports whether the platform has an always-present native
+// windowing backend (darwin Cocoa, windows Win32), where displayAvailable is
+// unconditionally true regardless of any $DISPLAY/$WAYLAND_DISPLAY gate.
+func alwaysWindowed() bool {
+	return runtime.GOOS == "darwin" || runtime.GOOS == "windows"
+}
+
+// withDisplay makes displayAvailable() report true on the env-gated platforms
+// (X11/Wayland) so the windowed path is reached; the always-windowed platforms
+// need no env.
 func withDisplay(t *testing.T) {
 	t.Helper()
-	if runtime.GOOS != "darwin" {
+	if !alwaysWindowed() {
 		t.Setenv("DISPLAY", ":0")
 	}
 }
@@ -154,13 +162,14 @@ func TestRunWindowUnsupported(t *testing.T) {
 	}
 }
 
-// TestRunNoActionHeadless exercises the headless fallback (no display named,
-// non-darwin): it reports the composed shell and returns 0 without opening a
-// window. On darwin displayAvailable is always true, so this path is covered by
-// the non-darwin unit lane.
+// TestRunNoActionHeadless exercises the headless fallback (no display named, on
+// an env-gated platform): it reports the composed shell and returns 0 without
+// opening a window. On the always-windowed platforms (darwin, windows)
+// displayAvailable is always true, so this fallback path is covered by the
+// env-gated unit lanes instead.
 func TestRunNoActionHeadless(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("darwin always has a native windowing backend")
+	if alwaysWindowed() {
+		t.Skip("this platform always has a native windowing backend")
 	}
 	t.Setenv("DISPLAY", "")
 	t.Setenv("WAYLAND_DISPLAY", "")
@@ -176,11 +185,12 @@ func TestRunNoActionHeadless(t *testing.T) {
 	}
 }
 
-// TestDisplayAvailable checks the darwin-always-true rule and the env gate.
+// TestDisplayAvailable checks the always-windowed rule (darwin, windows) and the
+// env gate everywhere else.
 func TestDisplayAvailable(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	if alwaysWindowed() {
 		if !displayAvailable() {
-			t.Fatal("darwin must always report a native windowing backend")
+			t.Fatal("this platform must always report a native windowing backend")
 		}
 		return
 	}
