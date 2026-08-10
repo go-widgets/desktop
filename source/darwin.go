@@ -96,6 +96,7 @@ func NewDarwin(o DarwinOptions) *Darwin {
 	if dd, err := shell.ListDir(dirOrDefault(o.Dir)); err == nil {
 		dd.Classify(d.resolver)
 		d.dir = dd
+		warmThumbs(d.thumb, dd)
 	}
 	return d
 }

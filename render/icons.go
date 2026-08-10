@@ -78,6 +78,26 @@ func NewIconLoaderFunc(fn func(name string) ([]byte, bool), size int) *IconLoade
 	}
 }
 
+// Fork returns a new loader that resolves icons through the SAME backend (theme
+// or bytes function, at the same size/scale) but keeps its OWN, independent
+// image cache — so the Images it hands out are distinct objects from the
+// original's. This is the seam an imperative drawer (the launcher's per-row
+// icon) uses to avoid aliasing the very Image objects a retained widget (the
+// dock) holds as scene children: two consumers that both mutate a shared
+// Image's bounds each frame would otherwise cross-contaminate, and the
+// damage-aware scene would repaint one consumer's icon inside the other's
+// region. A forked loader shares no Image with its parent, so each consumer
+// owns the bounds of the icons it draws.
+func (l *IconLoader) Fork() *IconLoader {
+	return &IconLoader{
+		theme:   l.theme,
+		bytesFn: l.bytesFn,
+		size:    l.size,
+		scale:   l.scale,
+		cache:   map[string]*toolkit.Image{},
+	}
+}
+
 // Image returns a cached Image for an icon name or absolute path. It never
 // returns nil: an unresolved / undecodable icon yields a placeholder swatch.
 func (l *IconLoader) Image(name string) *toolkit.Image {
