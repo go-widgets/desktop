@@ -6,6 +6,7 @@ package render
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -207,11 +208,14 @@ func TestFinderTitleAndPageName(t *testing.T) {
 	if titleFor("") != "Fichiers" {
 		t.Error("empty title")
 	}
-	if titleFor("/") != "/" {
-		t.Errorf("root title = %q", titleFor("/"))
+	// A base-less root resolves to the OS root separator itself (cross-platform:
+	// filepath.Base of the separator is the separator).
+	root := string(filepath.Separator)
+	if titleFor(root) != root {
+		t.Errorf("root title = %q, want %q", titleFor(root), root)
 	}
-	if titleFor("/a/b") != "b" {
-		t.Errorf("base title = %q", titleFor("/a/b"))
+	if titleFor(filepath.Join("a", "b")) != "b" {
+		t.Errorf("base title = %q", titleFor(filepath.Join("a", "b")))
 	}
 }
 
