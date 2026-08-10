@@ -130,11 +130,7 @@ func buildScene(o options) (*render.Scene, *shell.AppIndex) {
 	if o.embedded {
 		src = source.NewEmbedded()
 	} else {
-		src = source.NewXDG(source.XDGOptions{
-			Dir:       o.dir,
-			IconTheme: o.iconTheme,
-			IconSize:  render.DefaultIconSize,
-		})
+		src = nativeSource(o)
 	}
 
 	theme := toolkit.DefaultDark()
