@@ -10,11 +10,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/go-freedesktop/desktopentry"
-	"github.com/go-freedesktop/menu"
 	"github.com/go-freedesktop/mime"
 	"github.com/go-freedesktop/mimeapps"
 	"github.com/go-thumbnail/thumbnail"
@@ -43,10 +41,6 @@ type Darwin struct {
 
 // compile-time assurance the darwin source satisfies the seam.
 var _ shell.AppSource = (*Darwin)(nil)
-
-// mimeLoad is a seam over mime.Load so the "no shared MIME database" fallback is
-// testable deterministically, independent of the host's XDG data dirs.
-var mimeLoad = mime.Load
 
 // DarwinOptions parametrises the macOS scan.
 type DarwinOptions struct {
@@ -200,39 +194,9 @@ func entryForBundle(b bundleInfo) *desktopentry.Entry {
 	}
 }
 
-// menuTree builds a resolved menu.Tree from the per-category app groups, ordered
-// by category name for a deterministic menu, so NewMenuModel flattens it exactly
-// as the native menu.Load path does.
-func menuTree(byCat map[string][]*desktopentry.Entry) *menu.Tree {
-	cats := make([]string, 0, len(byCat))
-	for c := range byCat {
-		cats = append(cats, c)
-	}
-	sort.Strings(cats)
-	root := &menu.Menu{Name: "Applications"}
-	for _, c := range cats {
-		root.Submenus = append(root.Submenus, &menu.Menu{
-			Name:          c,
-			DirectoryName: c,
-			Apps:          byCat[c],
-		})
-	}
-	return &menu.Tree{Root: root}
-}
-
 // bundleBaseName is the bundle directory name without its .app suffix.
 func bundleBaseName(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".app")
-}
-
-// firstNonEmpty returns the first non-empty argument, or "".
-func firstNonEmpty(vs ...string) string {
-	for _, v := range vs {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // lsCategories maps Apple's LSApplicationCategoryType uniform-type identifiers
