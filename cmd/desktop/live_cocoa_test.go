@@ -39,6 +39,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-widgets/desktop/render"
@@ -163,6 +164,11 @@ func TestLiveCocoaShell(t *testing.T) {
 	out := os.Getenv("DESKTOP_COCOA_PNG")
 	if out == "" {
 		out = "native-macos-shell-2026-08-10.png"
+	}
+	if dir := filepath.Dir(out); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	img := &image.RGBA{Pix: buf, Stride: cocoaW * 4, Rect: image.Rect(0, 0, cocoaW, cocoaH)}
 	f, err := os.Create(out)

@@ -168,7 +168,10 @@ jobs:
       - name: Capture the native-macOS shell + assert pixels/input
         env:
           DESKTOP_COCOA_CAPTURE: "1"
-          DESKTOP_COCOA_PNG: "docs/native-macos-shell-2026-08-10.png"
+          # Absolute path: `go test` runs in the package dir, so a relative path
+          # would resolve under cmd/desktop/. The upload step reads docs/ from
+          # the workspace root.
+          DESKTOP_COCOA_PNG: "${{ github.workspace }}/docs/native-macos-shell-2026-08-10.png"
         run: CGO_ENABLED=0 go test -tags=integration -run TestLiveCocoaShell -v ./cmd/desktop/...
       - name: Upload the captured native shell as a build artifact
         if: always()
