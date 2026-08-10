@@ -11,10 +11,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 
 	"github.com/go-widgets/desktop/render"
 	"github.com/go-widgets/window"
 )
+
+// openWindow is a seam over window.Open so the windowed run path can be
+// exercised without opening (and blocking on) a real window in unit tests. The
+// real binary always uses window.Open.
+var openWindow = window.Open
 
 // runWindow opens a real window on the running display server via the pure-Go
 // github.com/go-widgets/window backend — which auto-selects the Wayland
@@ -39,7 +45,7 @@ func runWindow(o options, sc *render.Scene, errw io.Writer) error {
 		reportComposed(errw, sc)
 		return nil
 	}
-	be, err := window.Open(window.Config{
+	be, err := openWindow(window.Config{
 		Title:    "go-widgets desktop shell",
 		Instance: "desktop",
 		Class:    "go-widgets-desktop",
@@ -64,11 +70,18 @@ func runWindow(o options, sc *render.Scene, errw io.Writer) error {
 	return be.Run(sc.HostRoot())
 }
 
-// displayAvailable reports whether a display server is named in the
-// environment — Wayland preferred, else X11 — i.e. whether window.Open can dial
-// one. Checking here keeps the headless fallback deterministic instead of
-// depending on the exact dial error.
+// displayAvailable reports whether a native windowing backend can be opened
+// here. On macOS the Cocoa/AppKit backend is always present (window.Open
+// returns a real NSWindow), so it is unconditionally true — the X11/Wayland
+// $DISPLAY/$WAYLAND_DISPLAY environment gate is a Linux notion and would
+// wrongly short-circuit darwin into the headless composed-shell fallback.
+// Everywhere else, a display server must be named in the environment — Wayland
+// preferred, else X11 — for window.Open to dial one; checking here keeps the
+// headless fallback deterministic instead of depending on the exact dial error.
 func displayAvailable() bool {
+	if runtime.GOOS == "darwin" {
+		return true
+	}
 	return os.Getenv("WAYLAND_DISPLAY") != "" || os.Getenv("DISPLAY") != ""
 }
 

@@ -6,11 +6,43 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/go-widgets/toolkit"
+	"github.com/go-widgets/window"
 )
+
+// fakeBackend is a window.Backend stand-in whose Run returns immediately, so
+// the no-flags windowed path can be exercised in a unit test without opening a
+// real (blocking) window. onRun records that Run was reached.
+type fakeBackend struct {
+	onRun  func(root toolkit.Widget)
+	runErr error
+}
+
+func (f *fakeBackend) Run(root toolkit.Widget) error {
+	if f.onRun != nil {
+		f.onRun(root)
+	}
+	return f.runErr
+}
+func (f *fakeBackend) Close() error     { return nil }
+func (f *fakeBackend) Size() (int, int) { return 0, 0 }
+func (f *fakeBackend) String() string   { return "fakeBackend" }
+
+// withDisplay makes displayAvailable() report true on non-darwin (darwin is
+// always true) so the windowed path is reached.
+func withDisplay(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "darwin" {
+		t.Setenv("DISPLAY", ":0")
+	}
+}
 
 // writeApp drops a minimal .desktop file into an applications dir.
 func writeApp(t *testing.T, appsDir, file, body string) {
@@ -67,10 +99,99 @@ func TestRunBadFlag(t *testing.T) {
 	}
 }
 
+// TestRunNoAction drives the default (no-flags) path — which opens a real
+// window and runs the shell interactively — through a fake backend so the unit
+// test does not open (and block on) a real window. It asserts the shell's
+// damage-aware root (scene.HostRoot) is handed to the backend's Run: the one
+// backend-agnostic path shared by X11/Wayland/Cocoa/wasmbox.
 func TestRunNoAction(t *testing.T) {
+	withDisplay(t)
+	orig := openWindow
+	defer func() { openWindow = orig }()
+	var gotRoot toolkit.Widget
+	openWindow = func(cfg window.Config) (window.Backend, error) {
+		return &fakeBackend{onRun: func(root toolkit.Widget) { gotRoot = root }}, nil
+	}
 	var errb bytes.Buffer
 	if code := run([]string{"-dir", t.TempDir()}, &errb); code != 0 {
-		t.Errorf("no-action exit = %d, want 0", code)
+		t.Errorf("no-action exit = %d, want 0; stderr=%s", code, errb.String())
+	}
+	if gotRoot == nil {
+		t.Fatal("windowed path did not Run a root widget")
+	}
+	// The root must be the scene's damage-aware host root (incremental present).
+	if _, ok := gotRoot.(window.DamageRenderer); !ok {
+		t.Errorf("root %T does not implement window.DamageRenderer (no incremental present)", gotRoot)
+	}
+}
+
+// TestRunWindowError propagates a backend open error as a non-zero exit.
+func TestRunWindowError(t *testing.T) {
+	withDisplay(t)
+	orig := openWindow
+	defer func() { openWindow = orig }()
+	openWindow = func(cfg window.Config) (window.Backend, error) {
+		return nil, fmt.Errorf("dial failed")
+	}
+	var errb bytes.Buffer
+	if code := run([]string{"-dir", t.TempDir()}, &errb); code != 1 {
+		t.Errorf("window-error exit = %d, want 1", code)
+	}
+}
+
+// TestRunWindowUnsupported falls back to the composed-shell report (exit 0)
+// when the backend reports no windowing support.
+func TestRunWindowUnsupported(t *testing.T) {
+	withDisplay(t)
+	orig := openWindow
+	defer func() { openWindow = orig }()
+	openWindow = func(cfg window.Config) (window.Backend, error) {
+		return nil, window.ErrUnsupported
+	}
+	var errb bytes.Buffer
+	if code := run([]string{"-dir", t.TempDir()}, &errb); code != 0 {
+		t.Errorf("unsupported exit = %d, want 0", code)
+	}
+}
+
+// TestRunNoActionHeadless exercises the headless fallback (no display named,
+// non-darwin): it reports the composed shell and returns 0 without opening a
+// window. On darwin displayAvailable is always true, so this path is covered by
+// the non-darwin unit lane.
+func TestRunNoActionHeadless(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skip("darwin always has a native windowing backend")
+	}
+	t.Setenv("DISPLAY", "")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	orig := openWindow
+	defer func() { openWindow = orig }()
+	openWindow = func(cfg window.Config) (window.Backend, error) {
+		t.Fatal("headless path must not open a window")
+		return nil, errors.New("unreachable")
+	}
+	var errb bytes.Buffer
+	if code := run([]string{"-dir", t.TempDir()}, &errb); code != 0 {
+		t.Errorf("headless exit = %d, want 0", code)
+	}
+}
+
+// TestDisplayAvailable checks the darwin-always-true rule and the env gate.
+func TestDisplayAvailable(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		if !displayAvailable() {
+			t.Fatal("darwin must always report a native windowing backend")
+		}
+		return
+	}
+	t.Setenv("DISPLAY", "")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	if displayAvailable() {
+		t.Fatal("no display named: want unavailable")
+	}
+	t.Setenv("DISPLAY", ":0")
+	if !displayAvailable() {
+		t.Fatal("DISPLAY set: want available")
 	}
 }
 
