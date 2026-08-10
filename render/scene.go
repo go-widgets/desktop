@@ -6,14 +6,11 @@ package render
 
 import (
 	"image"
-	"path/filepath"
-	"strings"
 
 	"github.com/go-widgets/desktop/shell"
 	"github.com/go-widgets/mvvm"
 	"github.com/go-widgets/painter"
 	"github.com/go-widgets/toolkit"
-	"github.com/go-widgets/toolkit/virtual"
 )
 
 // Config bundles the shell models and rendering resources a Scene composes.
@@ -40,6 +37,14 @@ type Config struct {
 	Height      int
 	// DockMax caps how many app icons appear in the dock (0 -> a sane default).
 	DockMax int
+
+	// Places is the file-manager sidebar model (Favoris + Emplacements). When
+	// nil the finder resolves shell.DefaultPlaces() for the running OS.
+	Places *shell.Places
+	// Lister is the directory-navigation backend the finder calls as the user
+	// browses. When nil it defaults to render.NativeLister (real filesystem +
+	// name-based classification); the browser build degrades to an empty state.
+	Lister func(path string) (*shell.Dir, error)
 }
 
 // Scene is the composed desktop shell: a Border(menubar / dock / launcher /
@@ -50,17 +55,15 @@ type Scene struct {
 	theme *toolkit.Theme
 
 	// mvvm state.
-	query     *mvvm.Observable[string]
-	results   *mvvm.ObservableList[shell.App]
-	fileModel *mvvm.ObservableList[shell.FileItem]
+	query   *mvvm.Observable[string]
+	results *mvvm.ObservableList[shell.App]
 
 	// widgets.
 	root          *toolkit.Border
 	dock          *toolkit.HBox
 	launcher      *toolkit.ListBox
 	launcherFrame *toolkit.Frame
-	grid          *virtual.VirtualGrid[shell.FileItem]
-	gridFrame     *toolkit.Frame
+	finder        *FinderPane
 	menubar       *toolkit.MenuBar
 
 	dockCount int
@@ -74,18 +77,10 @@ type Scene struct {
 	onLauncherChanged func()
 	onToastsChanged   func()
 
-	// reusable per-cell label for the file grid.
-	cellLabel *toolkit.Label
-
-	// tasteful drawn fallback glyphs, rasterised once: a folder and a document
-	// for file-grid items with no real theme icon or thumbnail (every native
-	// macOS item, which has no XDG icon theme), and a generic app tile for a
-	// dock/launcher app with no resolvable icon — so the shell never shows a
-	// blank grey placeholder square.
-	folderGlyph  *toolkit.Image
-	fileGlyph    *toolkit.Image
-	pictureGlyph *toolkit.Image
-	appGlyph     *toolkit.Image
+	// appGlyph is the tasteful generic app tile drawn once for a dock/launcher
+	// app with no resolvable icon — so the shell never shows a blank grey
+	// placeholder square. (The file-manager fallback glyphs live on the finder.)
+	appGlyph *toolkit.Image
 
 	// launcherIcons is a forked icon loader (its own cache, same backend) and
 	// launcherAppGlyph a dedicated fallback tile, both OWNED by the launcher's
@@ -134,12 +129,10 @@ func New(cfg Config) *Scene {
 		cfg.DockMax = 12
 	}
 	s := &Scene{
-		cfg:       cfg,
-		theme:     cfg.Theme,
-		query:     mvvm.NewObservable(""),
-		results:   mvvm.NewObservableList[shell.App](),
-		fileModel: mvvm.NewObservableList[shell.FileItem](),
-		cellLabel: toolkit.NewLabel(""),
+		cfg:     cfg,
+		theme:   cfg.Theme,
+		query:   mvvm.NewObservable(""),
+		results: mvvm.NewObservableList[shell.App](),
 	}
 	s.thumbKey = thumbKeyPolicy(cfg)
 	s.build()
@@ -170,10 +163,8 @@ func thumbKeyPolicy(cfg Config) func(shell.FileItem) string {
 
 // build lays out the widget tree and wires the mvvm bindings.
 func (s *Scene) build() {
-	// Rasterise the tasteful fallback glyphs once (theme-aware app tile).
-	s.folderGlyph = folderIcon(DefaultIconSize)
-	s.fileGlyph = fileIcon(DefaultIconSize)
-	s.pictureGlyph = pictureIcon(DefaultIconSize)
+	// Rasterise the generic app tile once (theme-aware); the file-manager
+	// fallback glyphs are owned by the finder.
 	s.appGlyph = appTileIcon(DefaultIconSize, s.theme)
 
 	// The launcher draws its icons imperatively (mutating each Image's bounds
@@ -209,22 +200,21 @@ func (s *Scene) build() {
 	s.query.SubscribeChanged(s.applyQuery)
 	s.applyQuery() // seed results (and, via its subscription, the launcher)
 
-	// File grid: a virtualized gengrid over the directory's items.
-	if s.cfg.Dir != nil {
-		s.fileModel.Append(s.cfg.Dir.Items...)
-	}
-	s.grid = virtual.NewVirtualGrid(
-		s.fileModel,
-		toolkit.Size{W: 120, H: 92},
-		s.drawCell,
-	)
+	// File manager: the macOS-Finder-like browser fills the content region —
+	// its Favoris/Emplacements sidebar, the Liste/Vignettes/Colonnes view
+	// switcher + size slider, and the three views over the current directory.
+	s.finder = NewFinderPane(FinderConfig{
+		Icons:      s.cfg.Icons,
+		Theme:      s.theme,
+		Places:     s.cfg.Places,
+		Lister:     s.cfg.Lister,
+		ThumbKey:   s.thumbKey,
+		InitialDir: s.cfg.Dir,
+	})
 
-	// Titled panels give the shell composed structure: an "Applications" rail on
-	// the left, the current folder's name over the file grid.
+	// A titled panel gives the launcher rail composed structure on the left.
 	s.launcherFrame = toolkit.NewFrame(s.launcher)
 	s.launcherFrame.Title = "Launcher"
-	s.gridFrame = toolkit.NewFrame(s.grid)
-	s.gridFrame.Title = s.dirTitle()
 
 	s.root = toolkit.NewBorder()
 	s.root.North = s.menubar
@@ -232,20 +222,8 @@ func (s *Scene) build() {
 	s.root.South = s.dock
 	s.root.SouthSize = DefaultIconSize + 12
 	s.root.West = s.launcherFrame
-	s.root.WestSize = 220
-	s.root.Center = s.gridFrame
-}
-
-// dirTitle is the file-grid panel title: the current directory's base name, or
-// "Files" when no directory is available.
-func (s *Scene) dirTitle() string {
-	if s.cfg.Dir == nil || s.cfg.Dir.Path == "" {
-		return "Files"
-	}
-	if base := filepath.Base(s.cfg.Dir.Path); base != "" && base != "." && base != string(filepath.Separator) {
-		return base
-	}
-	return "Files"
+	s.root.WestSize = 200
+	s.root.Center = s.finder.Root()
 }
 
 // dockImage resolves a dock app's icon to real pixels, falling back to the
@@ -386,61 +364,6 @@ func (s *Scene) appMenu() *toolkit.Menu {
 	return toolkit.NewMenu(items)
 }
 
-// drawCell renders one file-grid cell: an icon (or thumbnail) above the name.
-func (s *Scene) drawCell(p painter.Painter, th *toolkit.Theme, r toolkit.Rect, _ int, item shell.FileItem) {
-	iconH := r.H - toolkit.MenuBarH
-	if iconH < 8 {
-		iconH = r.H
-	}
-	img := s.cellImage(item)
-	img.SetBounds(toolkit.Rect{X: r.X + (r.W-iconH)/2, Y: r.Y + 4, W: iconH, H: iconH})
-	img.Draw(p, th)
-
-	s.cellLabel.Text = elide(item.Name, 16)
-	s.cellLabel.SetBounds(toolkit.Rect{X: r.X, Y: r.Y + r.H - toolkit.MenuBarH, W: r.W, H: toolkit.MenuBarH})
-	s.cellLabel.Draw(p, th)
-}
-
-// cellImage picks the Image for a file item: a real thumbnail or theme icon
-// when one resolves (an on-disk thumbnail cache / an embedded asset / an XDG
-// MIME icon on Linux), otherwise a tasteful drawn glyph — a folder for a
-// directory, a document for a file — so a macOS item (no XDG icon theme) shows a
-// clean symbol rather than a blank grey placeholder square. The returned Images
-// are cached (by the loader, or the Scene's glyphs), so this allocates nothing
-// per frame; the file grid draws cells sequentially, so sharing a cached Image
-// across same-kind cells is safe.
-func (s *Scene) cellImage(item shell.FileItem) *toolkit.Image {
-	if img, ok := s.cfg.Icons.TryImage(s.iconNameFor(item)); ok {
-		return img
-	}
-	if item.IsDir {
-		return s.folderGlyph
-	}
-	if strings.HasPrefix(item.Mime, "image/") || shell.IsImageName(item.Name) {
-		return s.pictureGlyph
-	}
-	return s.fileGlyph
-}
-
-// iconNameFor maps a file item to an icon-loader key: "folder" for a directory,
-// the thumbnail key when the thumbnail policy supplies one (an on-disk cache
-// path natively, a virtual asset name in the browser), otherwise a per-MIME
-// theme-icon name.
-func (s *Scene) iconNameFor(item shell.FileItem) string {
-	if item.IsDir {
-		return "folder"
-	}
-	if s.thumbKey != nil {
-		if k := s.thumbKey(item); k != "" {
-			return k
-		}
-	}
-	if item.Mime == "" {
-		return "text-x-generic"
-	}
-	return strings.ReplaceAll(item.Mime, "/", "-")
-}
-
 // elide truncates s to max runes with an ellipsis.
 func elide(s string, max int) string {
 	r := []rune(s)
@@ -448,6 +371,27 @@ func elide(s string, max int) string {
 		return s
 	}
 	return string(r[:max-1]) + "…"
+}
+
+// elideToWidth trims s (measured with the active font) until it plus a trailing
+// ellipsis fits within maxPx, so a proportional-font name never spills past its
+// cell into the neighbour. A string that already fits is returned unchanged; a
+// maxPx too small for even the ellipsis yields "…".
+func elideToWidth(s string, maxPx int) string {
+	if maxPx <= 0 {
+		return ""
+	}
+	if toolkit.TextWidth(s) <= maxPx {
+		return s
+	}
+	r := []rune(s)
+	for len(r) > 0 {
+		r = r[:len(r)-1]
+		if toolkit.TextWidth(string(r)+"…") <= maxPx {
+			return string(r) + "…"
+		}
+	}
+	return "…"
 }
 
 // SetQuery updates the launcher search query, driving the results + launcher.
@@ -496,7 +440,11 @@ func (s *Scene) MenuCategoryCount() int {
 }
 
 // FileCount is the number of items in the file grid model.
-func (s *Scene) FileCount() int { return s.fileModel.Len() }
+func (s *Scene) FileCount() int { return s.finder.FileCount() }
+
+// Finder returns the composed file-manager pane, so a caller (the -capture CLI,
+// tests) can select a view mode, icon size or directory before rendering.
+func (s *Scene) Finder() *FinderPane { return s.finder }
 
 // ToastCount is the number of visible toasts.
 func (s *Scene) ToastCount() int { return len(s.toasts) }
