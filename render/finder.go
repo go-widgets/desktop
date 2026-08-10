@@ -247,6 +247,20 @@ func (f *FinderPane) navigatePlace(pl shell.Place) {
 	}
 }
 
+// GoToPlace navigates the finder to the sidebar place of the given kind (the
+// first match in Favoris then Emplacements), a no-op when no such place exists.
+// It is the programmatic peer of clicking that sidebar row (used by the capture
+// CLI and tests).
+func (f *FinderPane) GoToPlace(kind shell.PlaceKind) {
+	all := append(append([]shell.Place(nil), f.cfg.Places.Favorites...), f.cfg.Places.Locations...)
+	for _, pl := range all {
+		if pl.Kind == kind {
+			f.navigatePlace(pl)
+			return
+		}
+	}
+}
+
 // showNetwork puts the pane into the network location's empty state.
 func (f *FinderPane) showNetwork() {
 	f.fileModel.Clear()
@@ -375,6 +389,16 @@ func (f *FinderPane) IconSize() int { return int(f.iconSize.Get()) }
 
 // CurrentDir is the path currently shown ("" in the network empty state).
 func (f *FinderPane) CurrentDir() string { return f.cwd.Get() }
+
+// CascadeColumns opens the first sub-directory of each rightmost Miller column
+// until n columns show — the folder chain a user would click, used to populate a
+// column-view screenshot with the signature cascade. It switches to the column
+// view first so the strip is rooted.
+func (f *FinderPane) CascadeColumns(n int) {
+	f.SetView(ViewColumns)
+	f.columnView.cascadeFirst(n)
+	f.relayout()
+}
 
 // titleFor is the toolbar title for a path: its base name, or the path itself
 // for a root ("/" -> "/").
