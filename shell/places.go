@@ -71,8 +71,18 @@ type Places struct {
 // renders and the shell still builds.
 func DefaultPlaces() *Places {
 	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		// No filesystem (browser) — an honest minimal sidebar.
+	if err != nil {
+		home = ""
+	}
+	return placesFor(runtime.GOOS, home)
+}
+
+// placesFor is the OS-parameterised core of DefaultPlaces, so every per-OS
+// branch is exercisable in a test on any single host. An empty home (notably the
+// js/wasm browser build, which has no real filesystem) yields a minimal,
+// non-crashing model so the sidebar still renders and the shell still builds.
+func placesFor(goos, home string) *Places {
+	if home == "" {
 		return &Places{
 			Locations: []Place{
 				{Label: "Réseau", Kind: PlaceNetwork},
@@ -80,36 +90,30 @@ func DefaultPlaces() *Places {
 		}
 	}
 
-	appsPath := applicationsPath()
-	videosDir, videosLabel := videosPlace()
-	volPath, volLabel := volumePlace()
-	trashPath := trashPlace(home)
-
+	volPath, volLabel := volumePlace(goos)
 	favorites := []Place{
 		{Label: "Bureau", Path: filepath.Join(home, "Desktop"), Kind: PlaceDesktop},
 		{Label: "Documents", Path: filepath.Join(home, "Documents"), Kind: PlaceDocuments},
-		{Label: "Applications", Path: appsPath, Kind: PlaceApplications},
+		{Label: "Applications", Path: applicationsPath(goos), Kind: PlaceApplications},
 		{Label: "Images", Path: filepath.Join(home, "Pictures"), Kind: PlacePictures},
-		{Label: videosLabel, Path: videosDir, Kind: PlaceMovies},
+		{Label: "Vidéos", Path: videosPath(goos, home), Kind: PlaceMovies},
 		{Label: "Musique", Path: filepath.Join(home, "Music"), Kind: PlaceMusic},
 		{Label: "Téléchargements", Path: filepath.Join(home, "Downloads"), Kind: PlaceDownloads},
 	}
-
 	locations := []Place{
 		{Label: "Accueil", Path: home, Kind: PlaceHome},
 		{Label: volLabel, Path: volPath, Kind: PlaceVolume},
 		{Label: "Réseau", Kind: PlaceNetwork},
-		{Label: "Corbeille", Path: trashPath, Kind: PlaceTrash},
+		{Label: "Corbeille", Path: trashPath(goos, home), Kind: PlaceTrash},
 	}
-
 	return &Places{Favorites: favorites, Locations: locations}
 }
 
-// applicationsPath resolves the "Applications" favourite's path per OS:
+// applicationsPath resolves the "Applications" favourite's path for goos:
 // /Applications on macOS, the freedesktop application dir on Linux, and the
 // Program Files folder on Windows.
-func applicationsPath() string {
-	switch runtime.GOOS {
+func applicationsPath(goos string) string {
+	switch goos {
 	case "darwin":
 		return "/Applications"
 	case "windows":
@@ -122,20 +126,19 @@ func applicationsPath() string {
 	}
 }
 
-// videosPlace resolves the movies/videos favourite: macOS calls it "Vidéos"
-// backed by ~/Movies; other systems back it with ~/Videos.
-func videosPlace() (dir, label string) {
-	home, _ := os.UserHomeDir()
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(home, "Movies"), "Vidéos"
+// videosPath resolves the movies/videos favourite: macOS backs it with ~/Movies;
+// other systems back it with ~/Videos.
+func videosPath(goos, home string) string {
+	if goos == "darwin" {
+		return filepath.Join(home, "Movies")
 	}
-	return filepath.Join(home, "Videos"), "Vidéos"
+	return filepath.Join(home, "Videos")
 }
 
-// volumePlace resolves the startup-volume location: "Macintosh HD" -> / on
-// macOS, the C: drive on Windows, and "/" on Linux/other.
-func volumePlace() (path, label string) {
-	switch runtime.GOOS {
+// volumePlace resolves the startup-volume location for goos: "Macintosh HD" -> /
+// on macOS, the system drive on Windows, and "/" on Linux/other.
+func volumePlace(goos string) (path, label string) {
+	switch goos {
 	case "darwin":
 		return "/", "Macintosh HD"
 	case "windows":
@@ -148,10 +151,10 @@ func volumePlace() (path, label string) {
 	}
 }
 
-// trashPlace resolves the trash directory per OS from home: ~/.Trash on macOS,
+// trashPath resolves the trash directory for goos from home: ~/.Trash on macOS,
 // the XDG trash on Linux, and the profile Recycle Bin path on Windows.
-func trashPlace(home string) string {
-	switch runtime.GOOS {
+func trashPath(goos, home string) string {
+	switch goos {
 	case "darwin":
 		return filepath.Join(home, ".Trash")
 	case "windows":

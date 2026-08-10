@@ -100,6 +100,7 @@ func (s *sidebar) layout() {
 		s.rows = append(s.rows, sbRow{
 			rect:   toolkit.Rect{X: b.X, Y: y, W: b.W, H: sbHeaderH},
 			header: title,
+			favIdx: -1, // a header is never a favorite drop slot
 		})
 		y += sbHeaderH
 		for i, pl := range places {
