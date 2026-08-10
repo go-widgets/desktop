@@ -83,6 +83,7 @@ func NewXDG(o XDGOptions) *XDG {
 	if d, err := shell.ListDir(dirOrDefault(o.Dir)); err == nil {
 		d.Classify(x.resolver)
 		x.dir = d
+		warmThumbs(x.thumb, d)
 	}
 	return x
 }

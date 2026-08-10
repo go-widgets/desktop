@@ -100,6 +100,7 @@ func NewWindows(o WindowsOptions) *Windows {
 	if dd, err := shell.ListDir(dirOrDefault(o.Dir)); err == nil {
 		dd.Classify(w.resolver)
 		w.dir = dd
+		warmThumbs(w.thumb, dd)
 	}
 	return w
 }
