@@ -71,15 +71,16 @@ func runWindow(o options, sc *render.Scene, errw io.Writer) error {
 }
 
 // displayAvailable reports whether a native windowing backend can be opened
-// here. On macOS the Cocoa/AppKit backend is always present (window.Open
-// returns a real NSWindow), so it is unconditionally true — the X11/Wayland
-// $DISPLAY/$WAYLAND_DISPLAY environment gate is a Linux notion and would
-// wrongly short-circuit darwin into the headless composed-shell fallback.
-// Everywhere else, a display server must be named in the environment — Wayland
-// preferred, else X11 — for window.Open to dial one; checking here keeps the
-// headless fallback deterministic instead of depending on the exact dial error.
+// here. On macOS the Cocoa/AppKit backend and on Windows the Win32/GDI backend
+// are always present (window.Open returns a real NSWindow / HWND), so both are
+// unconditionally true — the X11/Wayland $DISPLAY/$WAYLAND_DISPLAY environment
+// gate is a Linux notion and would wrongly short-circuit them into the headless
+// composed-shell fallback. Everywhere else, a display server must be named in
+// the environment — Wayland preferred, else X11 — for window.Open to dial one;
+// checking here keeps the headless fallback deterministic instead of depending
+// on the exact dial error.
 func displayAvailable() bool {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
 		return true
 	}
 	return os.Getenv("WAYLAND_DISPLAY") != "" || os.Getenv("DISPLAY") != ""
