@@ -157,6 +157,53 @@ func TestSceneWidget(t *testing.T) {
 	w.OnEvent(toolkit.Event{Kind: toolkit.EventClick, X: 10, Y: 10})
 }
 
+// TestLauncherIconsRendered proves the launcher rail draws a per-row icon (not
+// just text) and that those icons are drawn from Image objects the dock does
+// NOT share — the isolation that keeps a launcher-row bounds mutation from
+// moving a dock child into the launcher region under the incremental scene.
+func TestLauncherIconsRendered(t *testing.T) {
+	s := New(testConfig())
+
+	// The launcher owns a forked loader and its own fallback tile, distinct
+	// from the dock's shared icon loader / app glyph.
+	if s.launcherIcons == s.cfg.Icons {
+		t.Error("launcher must use a forked icon loader, not the dock's shared one")
+	}
+	if s.launcherAppGlyph == s.appGlyph {
+		t.Error("launcher must use its own fallback glyph, not the dock's shared one")
+	}
+
+	// A launcher row resolves to a real Image (the tasteful app tile here, since
+	// the test icon names do not resolve through the empty theme).
+	if img := s.launcherIcon(0); img == nil {
+		t.Fatal("launcherIcon(0) is nil")
+	}
+	// Out-of-range indices fall back to the launcher's own glyph.
+	if s.launcherIcon(-1) != s.launcherAppGlyph || s.launcherIcon(999) != s.launcherAppGlyph {
+		t.Error("out-of-range launcherIcon did not fall back to the launcher glyph")
+	}
+
+	// Render and assert the launcher's icon column carries painted (non-empty)
+	// pixels beside the label — i.e. an icon was actually drawn.
+	img, err := s.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lb := s.launcher.Bounds()
+	iconCol := lb.X + launcherPad + launcherIconPx/2 // centre of the icon column
+	painted := false
+	for y := lb.Y; y < lb.Y+s.launcher.RowHeight && !painted; y++ {
+		r, g, b, a := img.At(iconCol, y).RGBA()
+		bg := s.theme.Background
+		if a>>8 == 0xFF && !(uint8(r>>8) == bg.R && uint8(g>>8) == bg.G && uint8(b>>8) == bg.B) {
+			painted = true
+		}
+	}
+	if !painted {
+		t.Errorf("no icon pixels painted in the launcher icon column x=%d over row 0", iconCol)
+	}
+}
+
 func TestSceneDefaultsAndEmpties(t *testing.T) {
 	// Zero-ish config: nil models, no theme/icons, default sizes.
 	s := New(Config{})

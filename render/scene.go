@@ -87,6 +87,17 @@ type Scene struct {
 	pictureGlyph *toolkit.Image
 	appGlyph     *toolkit.Image
 
+	// launcherIcons is a forked icon loader (its own cache, same backend) and
+	// launcherAppGlyph a dedicated fallback tile, both OWNED by the launcher's
+	// per-row renderer. The launcher draws icons imperatively, mutating each
+	// Image's bounds per row; the dock holds icon Images as retained scene
+	// children. Sharing one Image between the two would let a launcher-row
+	// bounds mutation move a dock child into the launcher region, so the
+	// damage-aware scene would repaint a stale dock icon there. Distinct objects
+	// keep the two consumers independent.
+	launcherIcons    *IconLoader
+	launcherAppGlyph *toolkit.Image
+
 	// thumbKey maps a file item to its thumbnail's icon-loader key ("" for
 	// none). It is the source's ThumbKey when a Source was supplied, otherwise
 	// a Thumbnailer-backed native policy (an existing on-disk cache path).
@@ -165,6 +176,13 @@ func (s *Scene) build() {
 	s.pictureGlyph = pictureIcon(DefaultIconSize)
 	s.appGlyph = appTileIcon(DefaultIconSize, s.theme)
 
+	// The launcher draws its icons imperatively (mutating each Image's bounds
+	// per row), so it must own Image objects distinct from the dock's retained
+	// scene children — a forked loader (own cache, same backend) and its own
+	// fallback tile. See the field docs.
+	s.launcherIcons = s.cfg.Icons.Fork()
+	s.launcherAppGlyph = appTileIcon(DefaultIconSize, s.theme)
+
 	s.menubar = toolkit.NewMenuBar()
 	s.menubar.AddMenu("Applications", s.appMenu())
 
@@ -179,8 +197,14 @@ func (s *Scene) build() {
 		s.dockCount++
 	}
 
-	// Launcher: a ListBox whose items track the search results list.
+	// Launcher: a ListBox whose items track the search results list. Each row
+	// is drawn (via the ListBox's ItemRenderer seam — the toolkit is untouched)
+	// as the app's real icon followed by its label, so the rail reads like an
+	// application list rather than a bare column of names. The row is made tall
+	// enough to seat the small icon with breathing room.
 	s.launcher = toolkit.NewListBox(nil)
+	s.launcher.RowHeight = launcherRowH
+	s.launcher.ItemRenderer = s.drawLauncherRow
 	s.results.SubscribeChanged(s.syncLauncher)
 	s.query.SubscribeChanged(s.applyQuery)
 	s.applyQuery() // seed results (and, via its subscription, the launcher)
@@ -232,6 +256,47 @@ func (s *Scene) dockImage(name string) *toolkit.Image {
 		return img
 	}
 	return s.appGlyph
+}
+
+// Launcher row metrics: a small logical app icon seated in a slightly taller
+// row so the icon has breathing room above and below the label baseline.
+const (
+	launcherRowH   = 24 // pixels per launcher row (default ListBox row is 18)
+	launcherIconPx = 18 // logical app-icon size drawn at the row's left
+	launcherPad    = 6  // left inset and icon-to-label gap
+)
+
+// drawLauncherRow is the launcher ListBox's per-row content renderer: it paints
+// the app's real icon at the row's left, vertically centred, then the label to
+// its right on the same baseline the default text renderer uses. The ListBox
+// still owns the row background (selection highlight), scrolling and selection —
+// this only fills the content, so the rail reads as "icon + name" like a real
+// application list. ink is the ListBox's resolved text colour (theme.OnSurface,
+// or theme.Background on the selected row), so the label tracks selection.
+func (s *Scene) drawLauncherRow(p painter.Painter, th *toolkit.Theme, rc toolkit.Rect, index int, item string, _ bool, ink toolkit.RGBA) {
+	img := s.launcherIcon(index)
+	iy := rc.Y + (rc.H-launcherIconPx)/2
+	img.SetBounds(toolkit.Rect{X: rc.X + launcherPad, Y: iy, W: launcherIconPx, H: launcherIconPx})
+	img.Draw(p, th)
+
+	tx := rc.X + launcherPad + launcherIconPx + launcherPad
+	ty := rc.Y + (rc.H-toolkit.GlyphHeight())/2
+	toolkit.DrawText(p, tx, ty, item, ink)
+}
+
+// launcherIcon resolves the launcher row at index to its app's real icon,
+// falling back to the tasteful drawn app tile (never a blank square) when the
+// app has no resolvable icon — the launcher peer of dockImage. The row index
+// tracks the results list, which syncLauncher mirrors into the ListBox items,
+// so results.At(index) is the app whose label occupies that row.
+func (s *Scene) launcherIcon(index int) *toolkit.Image {
+	if index < 0 || index >= s.results.Len() {
+		return s.launcherAppGlyph
+	}
+	if img, ok := s.launcherIcons.TryImage(s.results.At(index).Icon); ok {
+		return img
+	}
+	return s.launcherAppGlyph
 }
 
 // regions returns the shell root's non-nil border regions in the border's own
@@ -351,25 +416,10 @@ func (s *Scene) cellImage(item shell.FileItem) *toolkit.Image {
 	if item.IsDir {
 		return s.folderGlyph
 	}
-	if strings.HasPrefix(item.Mime, "image/") || isImageName(item.Name) {
+	if strings.HasPrefix(item.Mime, "image/") || shell.IsImageName(item.Name) {
 		return s.pictureGlyph
 	}
 	return s.fileGlyph
-}
-
-// imageExts are the file extensions the picture glyph covers. Extension is a
-// reliable last resort where MIME classification is weak — notably on macOS,
-// which has no shared MIME database, so the resolver leaves screenshots as
-// application/octet-stream; the name still ends in a known image extension.
-var imageExts = map[string]bool{
-	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true,
-	".bmp": true, ".tif": true, ".tiff": true, ".heic": true, ".heif": true,
-	".svg": true, ".ico": true, ".avif": true,
-}
-
-// isImageName reports whether name has a known image file extension.
-func isImageName(name string) bool {
-	return imageExts[strings.ToLower(filepath.Ext(name))]
 }
 
 // iconNameFor maps a file item to an icon-loader key: "folder" for a directory,
