@@ -81,27 +81,42 @@ func NewIconLoaderFunc(fn func(name string) ([]byte, bool), size int) *IconLoade
 // Image returns a cached Image for an icon name or absolute path. It never
 // returns nil: an unresolved / undecodable icon yields a placeholder swatch.
 func (l *IconLoader) Image(name string) *toolkit.Image {
-	if img, ok := l.cache[name]; ok {
+	if img, ok := l.TryImage(name); ok {
 		return img
 	}
-	img := l.load(name)
-	l.cache[name] = img
-	return img
+	return placeholder(l.size)
 }
 
-// load resolves name to pixels or a placeholder.
+// TryImage returns a cached Image for an icon name or absolute path and ok=true
+// when it resolved to real pixels, or (nil, false) on a miss (an empty name, a
+// theme/asset lookup that found nothing, or an undecodable file) WITHOUT
+// substituting a placeholder. It is the seam the file grid and dock use to fall
+// back to a tasteful drawn glyph (folder / document / app tile) instead of a
+// blank grey square when there is no real icon — the whole reason the native
+// macOS shell, which has no XDG icon theme, need never show an empty placeholder.
+func (l *IconLoader) TryImage(name string) (*toolkit.Image, bool) {
+	if img, ok := l.cache[name]; ok {
+		return img, img != nil
+	}
+	img := l.load(name)
+	l.cache[name] = img // cache misses (nil) too, so a repeat lookup is O(1)
+	return img, img != nil
+}
+
+// load resolves name to real pixels, or nil on a miss (the caller decides the
+// fallback — a placeholder swatch for Image, a drawn glyph for the grid/dock).
 func (l *IconLoader) load(name string) *toolkit.Image {
 	if name == "" {
-		return placeholder(l.size)
+		return nil
 	}
 	if l.bytesFn != nil {
 		b, ok := l.bytesFn(name)
 		if !ok {
-			return placeholder(l.size)
+			return nil
 		}
 		pix, w, h, err := decodeRGBABytes(b)
 		if err != nil {
-			return placeholder(l.size)
+			return nil
 		}
 		return toolkit.NewImageFit(pix, w, h)
 	}
@@ -109,13 +124,13 @@ func (l *IconLoader) load(name string) *toolkit.Image {
 	if !filepath.IsAbs(name) {
 		p, err := l.theme.FindIcon([]string{name, "application-x-executable"}, l.size, l.scale)
 		if err != nil {
-			return placeholder(l.size)
+			return nil
 		}
 		path = p
 	}
 	pix, w, h, err := decodeRGBA(path)
 	if err != nil {
-		return placeholder(l.size)
+		return nil
 	}
 	return toolkit.NewImageFit(pix, w, h)
 }

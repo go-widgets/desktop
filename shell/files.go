@@ -29,9 +29,11 @@ type Dir struct {
 	Items []FileItem
 }
 
-// ListDir lists path into a Dir. It does not classify MIME types (call
-// Classify for that); a read failure (missing / unreadable directory) is
-// returned as an error.
+// ListDir lists path into a Dir. Hidden entries (dotfiles: names beginning with
+// ".", e.g. .ssh, .cache, .Trash) are skipped, so the file grid shows a clean
+// user-facing directory rather than a wall of dotfile clutter. It does not
+// classify MIME types (call Classify for that); a read failure (missing /
+// unreadable directory) is returned as an error.
 func ListDir(path string) (*Dir, error) {
 	ents, err := os.ReadDir(path)
 	if err != nil {
@@ -39,6 +41,9 @@ func ListDir(path string) (*Dir, error) {
 	}
 	d := &Dir{Path: path}
 	for _, e := range ents {
+		if strings.HasPrefix(e.Name(), ".") {
+			continue // hidden / dotfile
+		}
 		d.Items = append(d.Items, FileItem{
 			Name:  e.Name(),
 			Path:  filepath.Join(path, e.Name()),
