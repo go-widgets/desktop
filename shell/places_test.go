@@ -22,10 +22,12 @@ func TestDefaultPlacesResolves(t *testing.T) {
 }
 
 func TestDefaultPlacesNoHome(t *testing.T) {
-	// Force os.UserHomeDir to fail (empty HOME), exercising the error branch that
-	// degrades to the minimal browser-style sidebar.
+	// Force os.UserHomeDir to fail, exercising the error branch that degrades to
+	// the minimal browser-style sidebar. The home var differs per OS: HOME on
+	// unix, USERPROFILE on Windows, home on plan9 — clear them all.
 	t.Setenv("HOME", "")
-	t.Setenv("home", "") // plan9/other, harmless elsewhere
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("home", "")
 	p := DefaultPlaces()
 	if len(p.Favorites) != 0 {
 		t.Errorf("no-home Favorites = %d, want 0", len(p.Favorites))
