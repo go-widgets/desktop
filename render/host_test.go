@@ -147,7 +147,7 @@ func TestHostRootPixelIdentityAndDamage(t *testing.T) {
 	}
 
 	// 5) Grid scroll: only the centre region repaints.
-	center := sc.gridFrame.Bounds()
+	center := sc.finder.Root().Bounds()
 	if r := step("grid-scroll", func() {
 		root.OnEvent(toolkit.Event{Kind: toolkit.EventScroll, X: center.X + 10, Y: center.Y + 10, Delta: 1})
 	}); true {
