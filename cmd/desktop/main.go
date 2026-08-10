@@ -70,6 +70,7 @@ type options struct {
 	embedded  bool
 	view      string
 	iconSize  int
+	place     string
 }
 
 // run parses args, builds the shell scene and performs the requested action,
@@ -90,6 +91,7 @@ func run(args []string, errw io.Writer) int {
 	fs.BoolVar(&o.embedded, "embedded", false, "use the embedded (browser) app source instead of scanning the filesystem — renders the exact scene the wasmdesk client shows")
 	fs.StringVar(&o.view, "view", "", "file-manager view mode: liste | vignettes | colonnes")
 	fs.IntVar(&o.iconSize, "icon-size", 0, "Vignettes icon size in pixels (32..128)")
+	fs.StringVar(&o.place, "place", "", "navigate the finder to a sidebar place: reseau | corbeille | accueil | volume")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -175,9 +177,23 @@ func applyFinderOptions(sc *render.Scene, o options) {
 		sc.Finder().SetView(render.ViewIcons)
 	case "colonnes", "columns":
 		sc.Finder().SetView(render.ViewColumns)
+		// For a screenshot, open a few levels so the Miller cascade is visible.
+		if o.capture != "" {
+			sc.Finder().CascadeColumns(4)
+		}
 	}
 	if o.iconSize > 0 {
 		sc.Finder().SetIconSize(o.iconSize)
+	}
+	switch o.place {
+	case "reseau", "network":
+		sc.Finder().GoToPlace(shell.PlaceNetwork)
+	case "corbeille", "trash":
+		sc.Finder().GoToPlace(shell.PlaceTrash)
+	case "accueil", "home":
+		sc.Finder().GoToPlace(shell.PlaceHome)
+	case "volume", "macintosh-hd":
+		sc.Finder().GoToPlace(shell.PlaceVolume)
 	}
 }
 

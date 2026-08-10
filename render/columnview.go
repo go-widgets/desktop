@@ -251,3 +251,28 @@ func (cv *columnView) columnAt(x int) *millerCol {
 
 // ColumnCount is the number of open directory columns (for tests).
 func (cv *columnView) ColumnCount() int { return len(cv.cols) }
+
+// cascadeFirst opens the first sub-directory of each rightmost column until
+// maxCols columns are shown (or no deeper folder exists) — the Miller cascade a
+// user builds by clicking down a folder chain, used to populate a screenshot
+// (and exercised by tests).
+func (cv *columnView) cascadeFirst(maxCols int) {
+	for len(cv.cols) > 0 && len(cv.cols) < maxCols {
+		last := cv.cols[len(cv.cols)-1]
+		fi := -1
+		for i, it := range last.dir.Items {
+			if it.IsDir {
+				fi = i
+				break
+			}
+		}
+		if fi < 0 {
+			break
+		}
+		before := len(cv.cols)
+		cv.onPick(len(cv.cols)-1, fi)
+		if len(cv.cols) == before { // no new column opened; avoid a spin
+			break
+		}
+	}
+}
