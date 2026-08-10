@@ -6,6 +6,7 @@ package render
 
 import (
 	"image"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-widgets/desktop/shell"
@@ -73,9 +74,18 @@ type Scene struct {
 	onLauncherChanged func()
 	onToastsChanged   func()
 
-	// reusable per-cell widgets for the file grid.
-	cellIcon  *toolkit.Image
+	// reusable per-cell label for the file grid.
 	cellLabel *toolkit.Label
+
+	// tasteful drawn fallback glyphs, rasterised once: a folder and a document
+	// for file-grid items with no real theme icon or thumbnail (every native
+	// macOS item, which has no XDG icon theme), and a generic app tile for a
+	// dock/launcher app with no resolvable icon — so the shell never shows a
+	// blank grey placeholder square.
+	folderGlyph  *toolkit.Image
+	fileGlyph    *toolkit.Image
+	pictureGlyph *toolkit.Image
+	appGlyph     *toolkit.Image
 
 	// thumbKey maps a file item to its thumbnail's icon-loader key ("" for
 	// none). It is the source's ThumbKey when a Source was supplied, otherwise
@@ -89,6 +99,12 @@ type Scene struct {
 // native XDG source yield the same Scene); otherwise the explicit model fields
 // are used as given.
 func New(cfg Config) *Scene {
+	// Install the proportional TrueType UI face before any widget lays out, so
+	// the whole shell renders in clean anti-aliased text instead of the toolkit's
+	// built-in 5x7 bitmap font. Pure app-level: it only calls the toolkit's
+	// public SetFont seam (the toolkit is untouched) and runs at most once.
+	UseUIFont()
+
 	if cfg.Source != nil {
 		cfg.Apps = cfg.Source.Apps()
 		cfg.Menu = cfg.Source.Menu()
@@ -114,7 +130,6 @@ func New(cfg Config) *Scene {
 		fileModel: mvvm.NewObservableList[shell.FileItem](),
 		cellLabel: toolkit.NewLabel(""),
 	}
-	s.cellIcon = toolkit.NewImageFit(nil, 0, 0)
 	s.thumbKey = thumbKeyPolicy(cfg)
 	s.build()
 	return s
@@ -144,6 +159,12 @@ func thumbKeyPolicy(cfg Config) func(shell.FileItem) string {
 
 // build lays out the widget tree and wires the mvvm bindings.
 func (s *Scene) build() {
+	// Rasterise the tasteful fallback glyphs once (theme-aware app tile).
+	s.folderGlyph = folderIcon(DefaultIconSize)
+	s.fileGlyph = fileIcon(DefaultIconSize)
+	s.pictureGlyph = pictureIcon(DefaultIconSize)
+	s.appGlyph = appTileIcon(DefaultIconSize, s.theme)
+
 	s.menubar = toolkit.NewMenuBar()
 	s.menubar.AddMenu("Applications", s.appMenu())
 
@@ -154,7 +175,7 @@ func (s *Scene) build() {
 		n = s.cfg.DockMax
 	}
 	for _, a := range apps[:n] {
-		s.dock.AddFixed(s.cfg.Icons.Image(a.Icon), DefaultIconSize)
+		s.dock.AddFixed(s.dockImage(a.Icon), DefaultIconSize)
 		s.dockCount++
 	}
 
@@ -174,8 +195,12 @@ func (s *Scene) build() {
 		s.drawCell,
 	)
 
+	// Titled panels give the shell composed structure: an "Applications" rail on
+	// the left, the current folder's name over the file grid.
 	s.launcherFrame = toolkit.NewFrame(s.launcher)
+	s.launcherFrame.Title = "Launcher"
 	s.gridFrame = toolkit.NewFrame(s.grid)
+	s.gridFrame.Title = s.dirTitle()
 
 	s.root = toolkit.NewBorder()
 	s.root.North = s.menubar
@@ -185,6 +210,28 @@ func (s *Scene) build() {
 	s.root.West = s.launcherFrame
 	s.root.WestSize = 220
 	s.root.Center = s.gridFrame
+}
+
+// dirTitle is the file-grid panel title: the current directory's base name, or
+// "Files" when no directory is available.
+func (s *Scene) dirTitle() string {
+	if s.cfg.Dir == nil || s.cfg.Dir.Path == "" {
+		return "Files"
+	}
+	if base := filepath.Base(s.cfg.Dir.Path); base != "" && base != "." && base != string(filepath.Separator) {
+		return base
+	}
+	return "Files"
+}
+
+// dockImage resolves a dock app's icon to real pixels, falling back to the
+// tasteful generic app tile (never a blank grey square) when the icon does not
+// resolve.
+func (s *Scene) dockImage(name string) *toolkit.Image {
+	if img, ok := s.cfg.Icons.TryImage(name); ok {
+		return img
+	}
+	return s.appGlyph
 }
 
 // regions returns the shell root's non-nil border regions in the border's own
@@ -289,13 +336,40 @@ func (s *Scene) drawCell(p painter.Painter, th *toolkit.Theme, r toolkit.Rect, _
 	s.cellLabel.Draw(p, th)
 }
 
-// cellImage picks the icon/thumbnail Image for a file item, reusing the shared
-// cell Image widget to avoid per-frame allocation.
+// cellImage picks the Image for a file item: a real thumbnail or theme icon
+// when one resolves (an on-disk thumbnail cache / an embedded asset / an XDG
+// MIME icon on Linux), otherwise a tasteful drawn glyph — a folder for a
+// directory, a document for a file — so a macOS item (no XDG icon theme) shows a
+// clean symbol rather than a blank grey placeholder square. The returned Images
+// are cached (by the loader, or the Scene's glyphs), so this allocates nothing
+// per frame; the file grid draws cells sequentially, so sharing a cached Image
+// across same-kind cells is safe.
 func (s *Scene) cellImage(item shell.FileItem) *toolkit.Image {
-	src := s.cfg.Icons.Image(s.iconNameFor(item))
-	s.cellIcon.Pixels, s.cellIcon.W, s.cellIcon.H, s.cellIcon.Scale =
-		src.Pixels, src.W, src.H, toolkit.ScaleFit
-	return s.cellIcon
+	if img, ok := s.cfg.Icons.TryImage(s.iconNameFor(item)); ok {
+		return img
+	}
+	if item.IsDir {
+		return s.folderGlyph
+	}
+	if strings.HasPrefix(item.Mime, "image/") || isImageName(item.Name) {
+		return s.pictureGlyph
+	}
+	return s.fileGlyph
+}
+
+// imageExts are the file extensions the picture glyph covers. Extension is a
+// reliable last resort where MIME classification is weak — notably on macOS,
+// which has no shared MIME database, so the resolver leaves screenshots as
+// application/octet-stream; the name still ends in a known image extension.
+var imageExts = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true,
+	".bmp": true, ".tif": true, ".tiff": true, ".heic": true, ".heif": true,
+	".svg": true, ".ico": true, ".avif": true,
+}
+
+// isImageName reports whether name has a known image file extension.
+func isImageName(name string) bool {
+	return imageExts[strings.ToLower(filepath.Ext(name))]
 }
 
 // iconNameFor maps a file item to an icon-loader key: "folder" for a directory,

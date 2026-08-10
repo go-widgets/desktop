@@ -203,15 +203,29 @@ func capture(sc *render.Scene, path string) error {
 	return png.Encode(f, img)
 }
 
-// defaultDir is the directory the file grid shows when -dir is not given.
+// defaultDir is the directory the file grid shows when -dir is not given: a
+// sensible user-facing folder — Desktop, else Documents, else the home
+// directory (whose dotfiles ListDir filters out), else the working directory,
+// else the filesystem root.
 func defaultDir() string {
 	if home, err := os.UserHomeDir(); err == nil {
+		for _, name := range []string{"Desktop", "Documents"} {
+			if p := filepath.Join(home, name); isDir(p) {
+				return p
+			}
+		}
 		return home
 	}
 	if wd, err := os.Getwd(); err == nil {
 		return wd
 	}
 	return string(filepath.Separator)
+}
+
+// isDir reports whether path exists and is a directory.
+func isDir(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
 }
 
 // splitNotify splits a "Summary|Body" spec into its two parts.

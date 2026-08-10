@@ -14,6 +14,11 @@ func TestListDir(t *testing.T) {
 	dir := t.TempDir()
 	mkfile(t, dir, "b.txt", "b")
 	mkfile(t, dir, "A.txt", "a")
+	// Hidden entries (a dotfile and a dot-directory) must be filtered out.
+	mkfile(t, dir, ".hidden", "secret")
+	if err := os.Mkdir(filepath.Join(dir, ".config"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Mkdir(filepath.Join(dir, "zoo"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -28,6 +33,12 @@ func TestListDir(t *testing.T) {
 	got := make([]string, len(d.Items))
 	for i, it := range d.Items {
 		got[i] = it.Name
+		if it.Name == ".hidden" || it.Name == ".config" {
+			t.Fatalf("hidden entry %q was not filtered out: %v", it.Name, got)
+		}
+	}
+	if len(got) != 4 {
+		t.Fatalf("listing = %v, want 4 visible entries (hidden filtered)", got)
 	}
 	// Directories first (case-insensitive), then files (case-insensitive).
 	want := []string{"Alpha", "zoo", "A.txt", "b.txt"}
