@@ -68,6 +68,9 @@ type options struct {
 	height    int
 	light     bool
 	embedded  bool
+	view      string
+	iconSize  int
+	place     string
 }
 
 // run parses args, builds the shell scene and performs the requested action,
@@ -86,11 +89,15 @@ func run(args []string, errw io.Writer) int {
 	fs.IntVar(&o.height, "h", 600, "render height")
 	fs.BoolVar(&o.light, "light", false, "use the light theme")
 	fs.BoolVar(&o.embedded, "embedded", false, "use the embedded (browser) app source instead of scanning the filesystem — renders the exact scene the wasmdesk client shows")
+	fs.StringVar(&o.view, "view", "", "file-manager view mode: liste | vignettes | colonnes")
+	fs.IntVar(&o.iconSize, "icon-size", 0, "Vignettes icon size in pixels (32..128)")
+	fs.StringVar(&o.place, "place", "", "navigate the finder to a sidebar place: reseau | corbeille | accueil | volume")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 
 	sc, apps := buildScene(o)
+	applyFinderOptions(sc, o)
 
 	if o.launch != "" {
 		if err := launchByID(apps, o.launch); err != nil {
@@ -157,6 +164,37 @@ func buildScene(o options) (*render.Scene, *shell.AppIndex) {
 		sc.SetQuery(o.query)
 	}
 	return sc, src.Apps()
+}
+
+// applyFinderOptions applies the -view / -icon-size flags to the finder pane
+// before a capture or an interactive run, so a screenshot can target a specific
+// Finder view mode and icon size.
+func applyFinderOptions(sc *render.Scene, o options) {
+	switch o.view {
+	case "liste", "list":
+		sc.Finder().SetView(render.ViewList)
+	case "vignettes", "icons", "icones":
+		sc.Finder().SetView(render.ViewIcons)
+	case "colonnes", "columns":
+		sc.Finder().SetView(render.ViewColumns)
+		// For a screenshot, open a few levels so the Miller cascade is visible.
+		if o.capture != "" {
+			sc.Finder().CascadeColumns(4)
+		}
+	}
+	if o.iconSize > 0 {
+		sc.Finder().SetIconSize(o.iconSize)
+	}
+	switch o.place {
+	case "reseau", "network":
+		sc.Finder().GoToPlace(shell.PlaceNetwork)
+	case "corbeille", "trash":
+		sc.Finder().GoToPlace(shell.PlaceTrash)
+	case "accueil", "home":
+		sc.Finder().GoToPlace(shell.PlaceHome)
+	case "volume", "macintosh-hd":
+		sc.Finder().GoToPlace(shell.PlaceVolume)
+	}
 }
 
 // launchByID resolves a desktop-file id in the index and starts it. This is the
