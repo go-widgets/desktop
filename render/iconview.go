@@ -255,6 +255,17 @@ func (v *iconView) OnEvent(ev toolkit.Event) {
 	}
 }
 
+// DragData makes the icon view a toolkit DragSource: a drag started on the
+// selected cell carries that file's path, so the host shows a real file drag.
+// (Dropping onto a folder to MOVE the file is intentionally NOT wired — it would
+// mutate the real filesystem; see the PR notes.)
+func (v *iconView) DragData() string {
+	if v.sel < 0 || v.sel >= v.model.Len() {
+		return ""
+	}
+	return v.model.At(v.sel).Path
+}
+
 // withAlpha returns c with its alpha replaced.
 func withAlpha(c toolkit.RGBA, a uint8) toolkit.RGBA {
 	c.A = a

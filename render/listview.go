@@ -139,6 +139,18 @@ func (lv *listView) OnEvent(ev toolkit.Event) {
 	lv.table.OnEvent(ev)
 }
 
+// DragData makes the list view a toolkit DragSource: a drag started on the
+// selected row carries that file's path, so the host shows a real file drag.
+// (Dropping onto a folder to MOVE the file is intentionally NOT wired — it would
+// mutate the real filesystem; see the PR notes.)
+func (lv *listView) DragData() string {
+	row := lv.table.Selected
+	if row < 0 || row >= lv.model.Len() {
+		return ""
+	}
+	return lv.model.At(row).Path
+}
+
 // drawCentredMessage centres the empty-state message within b.
 func drawCentredMessage(p painter.Painter, th *toolkit.Theme, b toolkit.Rect, emptyFn func() string) {
 	msg := "Dossier vide"
