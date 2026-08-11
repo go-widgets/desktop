@@ -14,7 +14,7 @@ require (
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.5.0
 	github.com/go-widgets/painter v0.3.0
-	github.com/go-widgets/toolkit v0.132.0
+	github.com/go-widgets/toolkit v0.136.0
 	github.com/go-widgets/window v0.7.0
 )
 

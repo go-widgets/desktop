@@ -6,6 +6,7 @@ coverage.out
 # Keep committed proof screenshots (dated live-window captures) under docs/,
 # while transient captures elsewhere stay ignored.
 !docs/*.png
+!docs/finder/*.png
 
 # The embedded (browser) app source bakes these icons/thumbnails into the wasm
 # via embed.FS — they MUST be committed (a CI checkout needs them to build).
