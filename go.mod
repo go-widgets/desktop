@@ -3,19 +3,19 @@ module github.com/go-widgets/desktop
 go 1.26.4
 
 require (
-	github.com/go-freedesktop/dbus v0.1.1
 	github.com/go-freedesktop/desktopentry v0.1.0
 	github.com/go-freedesktop/icontheme v0.1.0
 	github.com/go-freedesktop/menu v0.1.0
 	github.com/go-freedesktop/mime v0.1.0
 	github.com/go-freedesktop/mimeapps v0.1.0
-	github.com/go-freedesktop/notifications v0.2.0
+	github.com/go-freedesktop/notifications v0.4.0
 	github.com/go-opentype/fonts v0.6.0
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.5.0
-	github.com/go-widgets/painter v0.8.0
-	github.com/go-widgets/toolkit v0.142.0
-	github.com/go-widgets/window v0.12.0
+	github.com/go-widgets/painter v0.9.0
+	github.com/go-widgets/toolkit v0.149.0
+	github.com/go-widgets/window v0.20.0
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/sergeymakinen/go-ico v1.0.0
 	howett.net/plist v1.0.1
 )
@@ -23,7 +23,7 @@ require (
 require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/ebitengine/purego v0.10.2 // indirect
-	github.com/go-images/images v0.0.0-20260805203258-4b7a400612e8 // indirect
+	github.com/go-images/images v0.0.0-20260811115337-bc5d586f8e38 // indirect
 	github.com/go-macos/objc v0.1.1 // indirect
 	github.com/go-opentype/bidi v0.2.1 // indirect
 	github.com/go-opentype/opentype v0.5.0 // indirect
