@@ -21,13 +21,14 @@ const (
 	ViewList    = 0 // Liste
 	ViewIcons   = 1 // Vignettes
 	ViewColumns = 2 // Colonnes
+	ViewGallery = 3 // Galerie
 )
 
 // Toolbar metrics.
 const (
 	finderToolbarH = 44
 	finderSidebarW = 194
-	switcherW      = 216
+	switcherW      = 288 // four segments: Liste / Vignettes / Colonnes / Galerie
 	sliderW        = 120
 )
 
@@ -49,12 +50,13 @@ type FinderConfig struct {
 
 // FinderPane is the macOS-Finder-like file browser that fills the desktop
 // shell's content region: a Favoris/Emplacements sidebar, a toolbar with a
-// Liste/Vignettes/Colonnes view switcher and an icon-size slider, and the three
-// swappable content views over a shared, sortable directory model. It composes
-// only public toolkit widgets (Border, HBox, ViewSwitcher, Scale, Table,
-// ListBox, Stack) plus three shell-level views for the gaps the toolkit has no
-// widget for (the sectioned sidebar, the improved icon grid, the Miller
-// columns) — the toolkit itself is never modified.
+// Liste/Vignettes/Colonnes/Galerie view switcher and an icon-size slider, and
+// the four swappable content views over a shared, sortable directory model. It
+// composes only public toolkit widgets (Border, HBox, ViewSwitcher, Scale,
+// Table, IconGrid, ColumnBrowser, GalleryView, Stack) plus shell-level adapters
+// for the gaps the toolkit has no widget for (the sectioned sidebar) and thin
+// projections of the shared model onto each toolkit view — the toolkit itself is
+// never modified.
 type FinderPane struct {
 	cfg   FinderConfig
 	theme *toolkit.Theme
@@ -77,17 +79,18 @@ type FinderPane struct {
 	placeGlyphs  map[shell.PlaceKind]*toolkit.Image
 
 	// widgets.
-	root       *toolkit.Border
-	overlay    *finderRoot // returned by Root(): draws root + the modal dialog
-	toolbar    *toolkit.HBox
-	titleLabel *toolkit.Label
-	switcher   *toolkit.ViewSwitcher
-	slider     *toolkit.Scale
-	sidebar    *sidebar
-	content    *toolkit.Stack
-	listView   *listView
-	iconView   *iconView
-	columnView *columnView
+	root        *toolkit.Border
+	overlay     *finderRoot // returned by Root(): draws root + the modal dialog
+	toolbar     *toolkit.HBox
+	titleLabel  *toolkit.Label
+	switcher    *toolkit.ViewSwitcher
+	slider      *toolkit.Scale
+	sidebar     *sidebar
+	content     *toolkit.Stack
+	listView    *listView
+	iconView    *iconView
+	columnView  *columnView
+	galleryView *galleryView
 
 	// dialog is the modal move-confirmation (or error) overlay, non-nil while a
 	// dialog is shown; the overlay routes input to it exclusively while it is up.
@@ -167,7 +170,7 @@ func (f *FinderPane) build() {
 	// Toolbar: title + view switcher + icon-size slider.
 	f.titleLabel = toolkit.NewLabel("")
 	f.titleLabel.VAlign = toolkit.VMiddle
-	f.switcher = toolkit.NewViewSwitcher([]string{"Liste", "Vignettes", "Colonnes"}, ViewIcons)
+	f.switcher = toolkit.NewViewSwitcher([]string{"Liste", "Vignettes", "Colonnes", "Galerie"}, ViewIcons)
 	f.switcher.OnChange = f.SetView
 	f.slider = toolkit.NewScale(iconSizeMin, iconSizeMax, f.iconSize.Get())
 	f.slider.OnChange = func(v float64) { f.SetIconSize(int(v)) }
@@ -184,11 +187,17 @@ func (f *FinderPane) build() {
 	f.iconView = newIconView(f.fileModel, int(f.iconSize.Get()), f.cellImage, f.open, f.emptyMessage)
 	f.iconView.onFileDrop = f.dropIntoFolder
 	f.columnView = newColumnView(f.cfg.Lister, f.listIcon, f.open)
+	// The gallery view reuses the exact same cellImage path as Vignettes, so its
+	// big preview + filmstrip show the same real raster thumbnails (a folder /
+	// document glyph otherwise). A file dropped on a folder thumbnail is a move.
+	f.galleryView = newGalleryView(f.fileModel, f.cellImage, f.open, f.emptyMessage)
+	f.galleryView.onFileDrop = f.dropIntoFolder
 
 	f.content = toolkit.NewStack()
 	f.content.AddPage("liste", f.listView)
 	f.content.AddPage("icones", f.iconView)
 	f.content.AddPage("colonnes", f.columnView)
+	f.content.AddPage("galerie", f.galleryView)
 	f.content.Visible = pageName(f.viewMode.Get())
 
 	// Root border.
@@ -229,6 +238,8 @@ func pageName(mode int) string {
 		return "liste"
 	case ViewColumns:
 		return "colonnes"
+	case ViewGallery:
+		return "galerie"
 	default:
 		return "icones"
 	}
@@ -237,7 +248,7 @@ func pageName(mode int) string {
 // SetView switches the visible content view (and roots the Miller strip at the
 // current directory the first time it is shown).
 func (f *FinderPane) SetView(mode int) {
-	if mode < ViewList || mode > ViewColumns {
+	if mode < ViewList || mode > ViewGallery {
 		return
 	}
 	f.viewMode.Set(mode)
@@ -335,6 +346,7 @@ func (f *FinderPane) setDir(dir *shell.Dir) {
 	f.titleLabel.Text = titleFor(dir.Path)
 	f.sidebar.SetActive(dir.Path)
 	f.iconView.clearSelection()
+	f.galleryView.clearSelection()
 	f.listView.Refresh()
 }
 
@@ -445,6 +457,25 @@ func (f *FinderPane) CascadeColumns(n int) {
 	f.SetView(ViewColumns)
 	f.columnView.cascadeFirst(n)
 	f.relayout()
+}
+
+// FocusGalleryImage selects the current directory's first image item in the
+// Galerie view, so the big preview shows a real photo rather than the gallery's
+// default first-item selection — which, because folders sort first, is often a
+// folder glyph. It switches to the gallery view first, then selects the image (a
+// no-op when the directory has no image). It is the gallery peer of
+// CascadeColumns: a screenshot/testing helper that stages the signature look of
+// the view without a live pointer.
+func (f *FinderPane) FocusGalleryImage() {
+	f.SetView(ViewGallery)
+	for i := 0; i < f.fileModel.Len(); i++ {
+		if f.fileModel.At(i).IsImage() {
+			f.galleryView.syncItems()
+			f.galleryView.SetSelected(i)
+			f.relayout()
+			return
+		}
+	}
 }
 
 // Finder dialog metrics.
