@@ -9,16 +9,16 @@ package main
 import (
 	"fmt"
 
-	"github.com/go-freedesktop/dbus"
 	"github.com/go-freedesktop/notifications"
 	ntoast "github.com/go-freedesktop/notifications/toast"
 	"github.com/go-widgets/desktop/render"
 	"github.com/go-widgets/toolkit"
+	"github.com/godbus/dbus/v5"
 )
 
 // runNotify runs a real org.freedesktop.Notifications daemon on the session
 // bus, sends the requested notification through D-Bus (exercising the whole
-// owned-dbus round trip), and hands the resulting go-widgets Toasts to the
+// godbus round trip), and hands the resulting go-widgets Toasts to the
 // scene. Run it under dbus-run-session so a private session bus exists.
 func runNotify(sc *render.Scene, spec string) error {
 	summary, body := splitNotify(spec)
