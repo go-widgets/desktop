@@ -460,7 +460,21 @@ func (w *sceneWidget) Draw(p painter.Painter, th *toolkit.Theme) {
 }
 
 // OnEvent forwards input to the shell root (the toast overlay is passive).
-func (w *sceneWidget) OnEvent(ev toolkit.Event) { w.sc.root.OnEvent(ev) }
+func (w *sceneWidget) OnEvent(ev toolkit.Event) { w.sc.routeInput(ev) }
+
+// routeInput dispatches one event into the shell. A keyboard event goes
+// straight to the Finder pane (the shell's keyboard-focus target for file
+// operations — ⌘C/⌘X/⌘V), because the Border routes only by pointer position
+// and a key event carries none; every other event follows the normal
+// pointer-hit routing through the root.
+func (s *Scene) routeInput(ev toolkit.Event) {
+	switch ev.Kind {
+	case toolkit.EventKeyDown, toolkit.EventKeyUp, toolkit.EventChar:
+		s.finder.Root().OnEvent(ev)
+	default:
+		s.root.OnEvent(ev)
+	}
+}
 
 // Render paints the whole shell (root widget then the toast stack) into a fresh
 // image of the configured size.
