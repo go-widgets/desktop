@@ -3,7 +3,7 @@ module github.com/go-widgets/desktop
 go 1.26.4
 
 require (
-	github.com/go-freedesktop/dbus v0.0.0-20260807132851-d088db983331
+	github.com/go-freedesktop/dbus v0.1.1
 	github.com/go-freedesktop/desktopentry v0.1.0
 	github.com/go-freedesktop/icontheme v0.1.0
 	github.com/go-freedesktop/menu v0.1.0
@@ -15,7 +15,7 @@ require (
 	github.com/go-widgets/mvvm v0.5.0
 	github.com/go-widgets/painter v0.3.0
 	github.com/go-widgets/toolkit v0.136.0
-	github.com/go-widgets/window v0.7.0
+	github.com/go-widgets/window v0.11.0
 )
 
 require (
