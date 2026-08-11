@@ -1,64 +1,55 @@
-# Finder file browser — flagged go-widgets/toolkit gaps
+# Finder file browser — toolkit gaps (now CLOSED)
 
-_Horodate: 2026-08-10 21:04 CEST_
+_Horodate: 2026-08-11 09:18 CEST_ (originally flagged 2026-08-10 21:04 CEST)
 
-The macOS-Finder-like file browser (`render.FinderPane`) is built **entirely at
-the app/shell level**. `github.com/go-widgets/toolkit` is **not modified** — it
-is co-developed by the maintainer. Where the browser needed a widget the toolkit
-does not yet provide, a **minimal shell-level widget** was built inside the
-`render` package and is flagged here as a candidate future toolkit addition.
+The macOS-Finder-like file browser (`render.FinderPane`) originally built three
+shell-level widgets for gaps `github.com/go-widgets/toolkit` did not yet cover.
+As of **toolkit v0.136.0** all three gaps are **closed**: the toolkit ships the
+widgets, and the shell now **consumes them** through thin adapters. The shell no
+longer owns any reference-widget rendering — each adapter only maps the shell's
+data / navigation / drag-to-move callbacks onto the toolkit widget.
 
-Everything else reuses public toolkit widgets unchanged:
+Everything reuses public toolkit widgets unchanged:
 `Border`, `HBox`, `VBox`, `Frame`, `Stack`, `ViewSwitcher`, `Scale`, `Table`,
-`ListBox`, `Label`, `Image`, plus `painter.Clipper` for bounds clipping.
+`Label`, `Image`, `Dialog`, `Button`, and now `SourceList`, `IconGrid`,
+`ColumnBrowser`.
 
-## Gap 1 — Sectioned source list (Finder sidebar)
+## Gap 1 — Sectioned source list (Finder sidebar) → **`toolkit.SourceList`**
 
-**Shell widget:** `render.sidebar` (`render/sidebar.go`).
+**Shell adapter:** `render.sidebar` (`render/sidebar.go`).
 
-The toolkit has `ListBox` (flat, single-section, uniformly reorderable) but no
-**sectioned source list**: two (or more) labelled groups — "Favoris",
-"Emplacements" — where a per-row icon sits beside the label, only *one* section
-is drag-reorderable, and the selected row is a rounded accent pill (the
-NSOutlineView "source list" style). `ListBox` cannot express section headers or
-per-section reorderability.
+The toolkit now ships `SourceList` — labelled sections, a per-row leading icon,
+per-section `Reorderable`, and source-list (rounded accent pill) selection. The
+shell adapter projects the Favoris/Emplacements `Places` model into its two
+sections (Favoris reorderable), maps `OnSelect` → navigation and `OnReorder` →
+the mirrored favourites order, and drives the active-location pill via
+`SetSelected`. The only shell-side addition is a file-drop row hit-test (the
+widget exposes no public one) so a file dragged onto a directory row requests a
+move.
 
-**Candidate toolkit addition:** a `SourceList` / `SidebarList` widget — labelled
-sections, per-row leading icon, per-section `Reorderable`, source-list selection
-styling. Would also serve a mail/settings sidebar.
+## Gap 2 — Icon (thumbnail) grid with framed, chip-backed cells → **`toolkit.IconGrid`**
 
-## Gap 2 — Icon (thumbnail) grid with framed, chip-backed cells
+**Shell adapter:** `render.iconView` (`render/iconview.go`).
 
-**Shell widget:** `render.iconView` (`render/iconview.go`).
+`IconGrid` owns the icon-grid cell chrome the shell used to draw by hand: a
+thumbnail centred in a subtle rounded frame, a **light chip behind a raster
+thumbnail** so a dark image stays visible on a dark theme, a centred elided
+label, a size-driven cell footprint, selection + hit-testing, and a `DragSource`
+carrying the selected cell's key. The adapter reprojects the directory model into
+`IconCell`s (resolving each icon + whether it is a raster thumbnail) and maps
+activation → open, plus the shell-side folder-cell drop → move.
 
-The toolkit's `virtual.VirtualGrid` reflows uniform cells but has no built-in
-notion of *icon-grid cell chrome*: a thumbnail centred and fit inside a subtle
-rounded frame, a **light chip behind a raster thumbnail** so a dark image stays
-visible on a dark theme, a centred label elided to the cell width, and a
-size-driven cell footprint. The improved cell treatment is app policy, so it was
-built as a dedicated view rather than a `VirtualGrid` `Render` closure (which
-draws cell *content* but owns no cell chrome, selection field, or hit-testing).
+## Gap 3 — Miller / column (Colonnes) view → **`toolkit.ColumnBrowser`**
 
-**Candidate toolkit addition:** an `IconGrid` widget (selectable, size-driven,
-framed/chip cells) — or a richer `VirtualGrid` cell context exposing selection +
-a themed cell frame.
+**Shell adapter:** `render.columnView` (`render/columnview.go`).
 
-## Gap 3 — Miller / column (Colonnes) view
-
-**Shell widget:** `render.columnView` (`render/columnview.go`).
-
-There is no column/Miller widget: N side-by-side directory columns where picking
-a folder opens the next column to the right, a file opens a preview column, and
-the strip scrolls horizontally to keep the deepest columns visible. It is
-composed here from one `toolkit.ListBox` per directory (each with a per-row
-`ItemRenderer` that draws the type icon, name and a disclosure chevron) laid out
-by hand.
-
-**Candidate toolkit addition:** a `ColumnBrowser` / `MillerView` widget over a
-tree/`AppSource`, owning the column chain, horizontal scroll and preview pane.
+`ColumnBrowser` owns the whole column chain, horizontal scroll and preview pane,
+driven by a caller-supplied `ColumnProvider`. The adapter implements that
+provider over the shell's directory lister (folders are containers; a leaf's
+kind + size feed the preview) and maps a re-picked leaf → open.
 
 ---
 
-Each gap is intentionally scoped **inside `render/`** so the toolkit stays
-untouched; promoting any of these into the toolkit later is a clean lift (the
-shell widget becomes the reference implementation).
+Promoting the three widgets into the toolkit was the clean lift the original
+flag anticipated: the shell widgets became the reference implementations, and the
+shell now depends on the toolkit versions instead of duplicating them.

@@ -58,19 +58,20 @@ func main() {
 
 // options are the parsed command-line flags.
 type options struct {
-	dir       string
-	capture   string
-	query     string
-	launch    string
-	notify    string
-	iconTheme string
-	width     int
-	height    int
-	light     bool
-	embedded  bool
-	view      string
-	iconSize  int
-	place     string
+	dir         string
+	capture     string
+	query       string
+	launch      string
+	notify      string
+	iconTheme   string
+	width       int
+	height      int
+	light       bool
+	embedded    bool
+	view        string
+	iconSize    int
+	place       string
+	confirmMove bool
 }
 
 // run parses args, builds the shell scene and performs the requested action,
@@ -92,6 +93,7 @@ func run(args []string, errw io.Writer) int {
 	fs.StringVar(&o.view, "view", "", "file-manager view mode: liste | vignettes | colonnes")
 	fs.IntVar(&o.iconSize, "icon-size", 0, "Vignettes icon size in pixels (32..128)")
 	fs.StringVar(&o.place, "place", "", "navigate the finder to a sidebar place: reseau | corbeille | accueil | volume")
+	fs.BoolVar(&o.confirmMove, "confirm-move", false, "pop the move-confirmation dialog (first file over first folder) — for a screenshot of the drag-to-move confirmation")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -194,6 +196,9 @@ func applyFinderOptions(sc *render.Scene, o options) {
 		sc.Finder().GoToPlace(shell.PlaceHome)
 	case "volume", "macintosh-hd":
 		sc.Finder().GoToPlace(shell.PlaceVolume)
+	}
+	if o.confirmMove {
+		sc.Finder().DemoMoveConfirm()
 	}
 }
 

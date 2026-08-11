@@ -219,12 +219,3 @@ func TestSceneDefaultsAndEmpties(t *testing.T) {
 		t.Errorf("default size = %v, want 960x600", img.Bounds())
 	}
 }
-
-func TestElide(t *testing.T) {
-	if got := elide("short", 16); got != "short" {
-		t.Errorf("elide short = %q", got)
-	}
-	if got := elide("a-very-long-filename-here.txt", 10); len([]rune(got)) != 10 {
-		t.Errorf("elide long = %q (len %d)", got, len([]rune(got)))
-	}
-}

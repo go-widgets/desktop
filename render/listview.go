@@ -30,6 +30,9 @@ type listView struct {
 	sortFn  func(col int, asc bool)
 	emptyFn func() string
 
+	// onFileDrop reports a file dropped onto a folder row as a move into it.
+	onFileDrop func(dstDir, srcPath string)
+
 	// reusable per-row icon Image, bounds mutated per row.
 	rowIcon *toolkit.Image
 }
@@ -124,9 +127,14 @@ func (lv *listView) Draw(p painter.Painter, th *toolkit.Theme) {
 	lv.table.Draw(p, th)
 }
 
-// OnEvent forwards to the table, and opens the row when a click lands on the
-// already-selected row (the pointer stand-in for a double click).
+// OnEvent forwards to the table, opens the row when a click lands on the
+// already-selected row (the pointer stand-in for a double click), and maps a
+// file dropped on a folder row to a move into that folder.
 func (lv *listView) OnEvent(ev toolkit.Event) {
+	if ev.Kind == toolkit.EventDrop && isFilePayload(ev.Code) {
+		lv.handleFileDrop(ev)
+		return
+	}
 	if ev.Kind == toolkit.EventClick {
 		prev := lv.table.Selected
 		row := lv.table.RowAt(ev.X, ev.Y)
@@ -139,10 +147,26 @@ func (lv *listView) OnEvent(ev toolkit.Event) {
 	lv.table.OnEvent(ev)
 }
 
+// handleFileDrop resolves the row under the drop point and, when it is a folder
+// (and not the dragged file's own row), reports a move of the dropped file into
+// it.
+func (lv *listView) handleFileDrop(ev toolkit.Event) {
+	row := lv.table.RowAt(ev.X, ev.Y)
+	if row < 0 || row >= lv.model.Len() {
+		return
+	}
+	it := lv.model.At(row)
+	if !it.IsDir || it.Path == ev.Code {
+		return
+	}
+	if lv.onFileDrop != nil {
+		lv.onFileDrop(it.Path, ev.Code)
+	}
+}
+
 // DragData makes the list view a toolkit DragSource: a drag started on the
-// selected row carries that file's path, so the host shows a real file drag.
-// (Dropping onto a folder to MOVE the file is intentionally NOT wired — it would
-// mutate the real filesystem; see the PR notes.)
+// selected row carries that file's path, so the host shows a real file drag and
+// can route a drop back to the finder as a move.
 func (lv *listView) DragData() string {
 	row := lv.table.Selected
 	if row < 0 || row >= lv.model.Len() {
@@ -150,6 +174,16 @@ func (lv *listView) DragData() string {
 	}
 	return lv.model.At(row).Path
 }
+
+// AcceptsDrop accepts any file-path payload so the host routes a file drag onto
+// the list here (where handleFileDrop decides whether it landed on a folder).
+func (lv *listView) AcceptsDrop(payload string) bool { return isFilePayload(payload) }
+
+// listView is a DragSource + DropTarget.
+var (
+	_ toolkit.DragSource = (*listView)(nil)
+	_ toolkit.DropTarget = (*listView)(nil)
+)
 
 // drawCentredMessage centres the empty-state message within b.
 func drawCentredMessage(p painter.Painter, th *toolkit.Theme, b toolkit.Rect, emptyFn func() string) {
