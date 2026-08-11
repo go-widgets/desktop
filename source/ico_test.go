@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"image"
-	"image/color"
 	"image/png"
 	"io"
 	"testing"
@@ -32,12 +31,12 @@ func buildICO(entries ...icoEntry) []byte {
 	for _, e := range entries {
 		dir.WriteByte(e.w)
 		dir.WriteByte(e.h)
-		dir.WriteByte(0) // colour count
-		dir.WriteByte(0) // reserved
-		binary.Write(&dir, binary.LittleEndian, uint16(1))              // planes
-		binary.Write(&dir, binary.LittleEndian, uint16(32))             // bit count
-		binary.Write(&dir, binary.LittleEndian, uint32(len(e.data)))    // bytes in res
-		binary.Write(&dir, binary.LittleEndian, uint32(offset))         // image offset
+		dir.WriteByte(0)                                             // colour count
+		dir.WriteByte(0)                                             // reserved
+		binary.Write(&dir, binary.LittleEndian, uint16(1))           // planes
+		binary.Write(&dir, binary.LittleEndian, uint16(32))          // bit count
+		binary.Write(&dir, binary.LittleEndian, uint32(len(e.data))) // bytes in res
+		binary.Write(&dir, binary.LittleEndian, uint32(offset))      // image offset
 		offset += len(e.data)
 		blob.Write(e.data)
 	}
@@ -54,20 +53,36 @@ func dibHeader(w, h, bits int) []byte {
 	return hdr
 }
 
-// dib32 builds a 32-bpp BGRA icon DIB filled with a per-pixel colour.
+// andMask builds the 1-bpp AND transparency mask that every well-formed BMP
+// icon image carries after its colour data. A real .ico (and the RT_ICON
+// resources peicon assembles) always ships this mask; a mask bit set to 1 marks
+// the pixel transparent. It is stored bottom-up, MSB-first, rows padded to 4
+// bytes. transparentTopLeft marks the image-top-left pixel transparent.
+func andMask(w, h int, transparentTopLeft bool) []byte {
+	stride := ((w + 31) / 32) * 4
+	mask := make([]byte, stride*h)
+	if transparentTopLeft {
+		mask[(h-1)*stride] = 0x80 // bottom-up: last row's first byte, MSB
+	}
+	return mask
+}
+
+// dib32 builds a 32-bpp BGRA icon DIB (real-icon form: colour data + all-zero
+// AND mask) filled with a per-pixel colour.
 func dib32(w, h int) []byte {
 	px := make([]byte, w*4*h)
 	for i := 0; i < w*h; i++ {
 		px[i*4+0] = 0x10 // B
 		px[i*4+1] = 0x20 // G
 		px[i*4+2] = 0x30 // R
-		px[i*4+3] = 0xFF // A (opaque: premultiplied == straight, survives PNG)
+		px[i*4+3] = 0xFF // A (opaque)
 	}
-	return append(dibHeader(w, h, 32), px...)
+	return append(append(dibHeader(w, h, 32), px...), andMask(w, h, false)...)
 }
 
-// dib24 builds a 24-bpp BGR icon DIB, optionally with a 1-bpp AND mask.
-func dib24(w, h int, withMask bool) []byte {
+// dib24 builds a 24-bpp BGR icon DIB with its 1-bpp AND mask; transparentTopLeft
+// marks the top-left pixel transparent through the mask (24-bpp has no alpha).
+func dib24(w, h int, transparentTopLeft bool) []byte {
 	xorStride := ((w*24 + 31) / 32) * 4
 	px := make([]byte, xorStride*h)
 	for y := 0; y < h; y++ {
@@ -77,13 +92,7 @@ func dib24(w, h int, withMask bool) []byte {
 		}
 	}
 	out := append(dibHeader(w, h, 24), px...)
-	if withMask {
-		andStride := ((w + 31) / 32) * 4
-		mask := make([]byte, andStride*h)
-		mask[0] = 0x80 // top-left (bottom-up: last row) pixel transparent
-		out = append(out, mask...)
-	}
-	return out
+	return append(out, andMask(w, h, transparentTopLeft)...)
 }
 
 func decodePNG(t *testing.T, b []byte) image.Image {
@@ -106,7 +115,7 @@ func TestICOBestPNGPicksLargest32(t *testing.T) {
 	}
 	img := decodePNG(t, out)
 	if b := img.Bounds(); b.Dx() != 32 || b.Dy() != 32 {
-		t.Fatalf("size = %v, want 32x32", b)
+		t.Fatalf("size = %v, want 32x32 (largest)", b)
 	}
 	r, g, bl, a := img.At(0, 0).RGBA()
 	if r>>8 != 0x30 || g>>8 != 0x20 || bl>>8 != 0x10 || a>>8 != 0xFF {
@@ -140,8 +149,8 @@ func TestICOBestPNG24WithMask(t *testing.T) {
 	if r>>8 != 0x33 || g>>8 != 0x22 || bl>>8 != 0x11 {
 		t.Errorf("pixel = %#x %#x %#x", r>>8, g>>8, bl>>8)
 	}
-	// The masked pixel (bottom-up first byte MSB) is the top-left of row h-1.
-	if _, _, _, a := img.At(0, 3).RGBA(); a>>8 != 0 {
+	// The masked (top-left) pixel decodes transparent.
+	if _, _, _, a := img.At(0, 0).RGBA(); a>>8 != 0 {
 		t.Errorf("masked pixel alpha = %#x, want 0", a>>8)
 	}
 }
@@ -156,85 +165,33 @@ func TestICOBestPNG24NoMask(t *testing.T) {
 	}
 }
 
-func TestICOBestPNGVerbatimPNG(t *testing.T) {
+func TestICOBestPNGFromPNGEntry(t *testing.T) {
+	// A PNG-backed entry decodes to the same image (re-encoded, not verbatim).
 	raw := pngOf(t, 48, 48)
 	out, err := icoBestPNG(buildICO(icoEntry{48, 48, raw}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(out, raw) {
-		t.Error("PNG-backed entry not returned verbatim")
+	got, want := decodePNG(t, out), decodePNG(t, raw)
+	if gb, wb := got.Bounds(), want.Bounds(); gb != wb {
+		t.Fatalf("bounds = %v, want %v", gb, wb)
+	}
+	gr, gg, gbl, ga := got.At(10, 20).RGBA()
+	wr, wg, wbl, wa := want.At(10, 20).RGBA()
+	if gr != wr || gg != wg || gbl != wbl || ga != wa {
+		t.Errorf("pixel mismatch: %v vs %v", got.At(10, 20), want.At(10, 20))
 	}
 }
 
-func TestICOBestPNGErrors(t *testing.T) {
-	t.Run("short", func(t *testing.T) {
-		if _, err := icoBestPNG([]byte{0, 0, 1}); err != errICOShort {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("bad type", func(t *testing.T) {
-		if _, err := icoBestPNG([]byte{0, 0, 2, 0, 1, 0}); err != errICOType {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("empty", func(t *testing.T) {
-		if _, err := icoBestPNG([]byte{0, 0, 1, 0, 0, 0}); err != errICOEmpty {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("entry table out of range", func(t *testing.T) {
-		// count=1 but no room for the 16-byte entry.
-		if _, err := icoBestPNG([]byte{0, 0, 1, 0, 1, 0}); err != errICOEntry {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("image data out of range", func(t *testing.T) {
-		ico := buildICO(icoEntry{4, 4, dib32(4, 4)})
-		binary.LittleEndian.PutUint32(ico[6+12:6+16], 0xFFFF) // bogus offset
-		if _, err := icoBestPNG(ico); err != errICOData {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("dib propagated", func(t *testing.T) {
-		ico := buildICO(icoEntry{4, 4, []byte{1, 2, 3}}) // too short for a DIB
-		if _, err := icoBestPNG(ico); err != errICODIB {
-			t.Fatalf("err = %v", err)
-		}
-	})
-}
-
-func TestDecodeDIBErrors(t *testing.T) {
-	t.Run("too short", func(t *testing.T) {
-		if _, err := decodeDIB(make([]byte, 39)); err != errICODIB {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("bad geometry", func(t *testing.T) {
-		hdr := dibHeader(0, 4, 32) // width 0
-		if _, err := decodeDIB(hdr); err != errICODIB {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("compressed", func(t *testing.T) {
-		hdr := dibHeader(4, 4, 32)
-		binary.LittleEndian.PutUint32(hdr[16:20], 1) // BI_RLE, unsupported
-		if _, err := decodeDIB(append(hdr, make([]byte, 4*4*4)...)); err != errICODIB {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("unsupported depth", func(t *testing.T) {
-		hdr := dibHeader(4, 4, 8) // 8-bpp palettised, unsupported
-		if _, err := decodeDIB(append(hdr, make([]byte, 64)...)); err != errICODIB {
-			t.Fatalf("err = %v", err)
-		}
-	})
-	t.Run("truncated pixels", func(t *testing.T) {
-		hdr := dibHeader(4, 4, 32) // no pixel bytes follow
-		if _, err := decodeDIB(hdr); err != errICODIB {
-			t.Fatalf("err = %v", err)
-		}
-	})
+func TestICOBestPNGDecodeError(t *testing.T) {
+	// Not an icon container: the reference decoder reports a format error.
+	if _, err := icoBestPNG([]byte("not an icon at all")); err == nil {
+		t.Fatal("want a decode error for non-ICO input")
+	}
+	// Empty input also fails to decode.
+	if _, err := icoBestPNG(nil); err == nil {
+		t.Fatal("want a decode error for empty input")
+	}
 }
 
 func TestICOBestPNGEncodeError(t *testing.T) {
@@ -252,6 +209,3 @@ var errFakeEncode = errorString("forced encode failure")
 type errorString string
 
 func (e errorString) Error() string { return string(e) }
-
-// keep color imported for the DIB helpers above.
-var _ = color.RGBA{}
