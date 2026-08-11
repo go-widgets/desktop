@@ -6,6 +6,8 @@ github.com/ebitengine/purego v0.10.2 h1:W809HbnvzAxgdm+aOvlSekrM16wGCdT/e76+9tS7
 github.com/ebitengine/purego v0.10.2/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/go-freedesktop/dbus v0.0.0-20260807132851-d088db983331 h1:oI0InRCr3P6s8oGmwU2FvNHfBf5uh/LvwGK8UDUsWv4=
 github.com/go-freedesktop/dbus v0.0.0-20260807132851-d088db983331/go.mod h1:POfbq95HLV4+H2pbs4GQKk8hLC+wbwgIxmrXbhBxgLw=
+github.com/go-freedesktop/dbus v0.1.1 h1:oznjbPKWkRga7lVhgkdQnt9aYfcy7gMYWlGX1HXd6q4=
+github.com/go-freedesktop/dbus v0.1.1/go.mod h1:POfbq95HLV4+H2pbs4GQKk8hLC+wbwgIxmrXbhBxgLw=
 github.com/go-freedesktop/desktopentry v0.1.0 h1:1cvTNXo63J5sFx8Ch18e1Dzw8BWUY7wr4OzJKCf7Cac=
 github.com/go-freedesktop/desktopentry v0.1.0/go.mod h1:iw5+/k0LMY2pvYYD3euvkjG/cUUZa37HEzLiTjaxqQE=
 github.com/go-freedesktop/icontheme v0.1.0 h1:sY7eELAv5Jr/69M75uQdDoxMnnYg7cd6MeQxjRqQVaw=
@@ -42,6 +44,8 @@ github.com/go-widgets/toolkit v0.136.0 h1:cHW3ksj2gPkWD2p7NGTxZYTgyHQl9UB00DDLfk
 github.com/go-widgets/toolkit v0.136.0/go.mod h1:RLuErcjKAA5AbWOw9/FfVakvaDk8faeWaL7ZkKRZi3I=
 github.com/go-widgets/window v0.7.0 h1:D+m+P1DgpghQDPfcRkD3enOGIxPOislhdDZCIzF2GgY=
 github.com/go-widgets/window v0.7.0/go.mod h1:veWWs9lnt/MwjtRXkp/JurklffPO/jCbnJPVwmgw1Ok=
+github.com/go-widgets/window v0.11.0 h1:+rwP6W5qmFM3uGbFYALy6EL1JEty+EeNiBrkM1A/gRw=
+github.com/go-widgets/window v0.11.0/go.mod h1:ATLsxW44hLU//OH3BLZoIpsV7ssOAP0V99XMEAVmza0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/rkoesters/xdg v0.0.1 h1:RmfYxghVvIsb4d51u5LtNOcwqY5r3P44u6o86qqvBMA=
