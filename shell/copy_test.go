@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -141,7 +142,9 @@ func TestCopyFileRecursiveDirectoryPreservesMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi.Mode().Perm() != 0o640 {
+	// Windows does not represent POSIX permission bits (it reports 0666 for any
+	// writable file), so the exact-mode assertion is meaningful only on POSIX.
+	if runtime.GOOS != "windows" && fi.Mode().Perm() != 0o640 {
 		t.Fatalf("mode not preserved: %v", fi.Mode().Perm())
 	}
 }
