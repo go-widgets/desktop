@@ -1,7 +1,12 @@
 # Finder file browser — captures
 
-_Horodate: 2026-08-10 21:04 CEST_ — rendered on macOS via
-`cmd/desktop -capture` against a real filesystem (`$HOME`, an image folder).
+_Horodate: 2026-08-11 09:18 CEST_ — rendered via `cmd/desktop -capture`. The
+three views are now composed from the **toolkit** Finder widgets
+(`toolkit.SourceList` / `IconGrid` / `ColumnBrowser`, toolkit v0.136.0) through
+thin shell adapters; the appearance is preserved from the previous
+shell-reference widgets (verified by before/after capture — the only pixel
+difference is the two sidebar section-header labels, which the toolkit's
+SourceList renders in its own muted tint).
 
 The desktop shell is the outer chrome (menubar, Applications launcher rail on
 the far left, dock along the bottom); the **file-manager pane** fills the
@@ -10,18 +15,16 @@ switcher + icon-size slider in the toolbar, and the active view.
 
 | Capture | What it shows |
 | --- | --- |
-| `2026-08-10-finder-liste.png` | **Liste** — sortable `toolkit.Table`: Nom / Taille / Type / Date de modification, sort arrow on Nom, per-row type icons, alternating row tints. |
-| `2026-08-10-finder-vignettes.png` | **Vignettes** at the default (64px) icon size — folder icons centred in framed cells, names elided to the cell width. |
-| `2026-08-10-finder-vignettes-thumbnails.png` | **Vignettes** over an image folder — **real thumbnails**, each centred on a light chip with a hairline frame so even dark images (a terminal screenshot, a dark stock photo) stay visible on the dark theme. |
-| `2026-08-10-finder-vignettes-large-icons.png` | The **size slider** pushed to 112px — same folder, larger cells; the slider thumb sits near the right of its track. |
-| `2026-08-10-finder-colonnes.png` | **Colonnes** (Miller) — four columns deep (`aot2 › ruby › bench › modules`), folder rows with a disclosure chevron, file rows with a document icon, the picked row highlighted in each column. |
-| `2026-08-10-finder-reseau-empty.png` | The **Réseau** location's honest empty state — a centred "Aucun partage", never a fake listing (there is no pure-Go network browsing). |
+| `2026-08-11-finder-liste.png` | **Liste** — sortable `toolkit.Table`: Nom / Taille / Type / Date de modification, sort arrow on Nom, per-row type icons. |
+| `2026-08-11-finder-vignettes.png` | **Vignettes** (`toolkit.IconGrid`) at the default 64px icon size — icons centred in framed cells, names elided to the cell width. |
+| `2026-08-11-finder-colonnes.png` | **Colonnes** (`toolkit.ColumnBrowser`) — Miller cascade, folder rows with a disclosure chevron, a leaf preview pane. |
+| `2026-08-11-finder-move-confirm.png` | **Drag-to-move confirmation** — a file dropped on a folder pops the modal « Déplacer «…» vers «…» ? » dialog (Annuler / Déplacer) over a dimmed pane. The real filesystem is mutated only after **Déplacer**. |
 
 Reproduce, e.g.:
 
 ```
-go run ./cmd/desktop -dir "$HOME" -view liste     -w 1280 -h 820 -capture liste.png
-go run ./cmd/desktop -dir /path/pics -view vignettes -icon-size 96 -w 1280 -h 820 -capture thumbs.png
-go run ./cmd/desktop -dir "$HOME" -view colonnes  -w 1280 -h 820 -capture colonnes.png
-go run ./cmd/desktop -dir "$HOME" -place reseau   -w 1280 -h 820 -capture reseau.png
+go run ./cmd/desktop -embedded -view liste        -w 960 -h 600 -capture liste.png
+go run ./cmd/desktop -embedded -view vignettes    -w 960 -h 600 -capture vignettes.png
+go run ./cmd/desktop -dir "$HOME" -view colonnes   -w 960 -h 600 -capture colonnes.png
+go run ./cmd/desktop -embedded -view vignettes -confirm-move -w 960 -h 600 -capture move.png
 ```

@@ -364,36 +364,6 @@ func (s *Scene) appMenu() *toolkit.Menu {
 	return toolkit.NewMenu(items)
 }
 
-// elide truncates s to max runes with an ellipsis.
-func elide(s string, max int) string {
-	r := []rune(s)
-	if len(r) <= max {
-		return s
-	}
-	return string(r[:max-1]) + "…"
-}
-
-// elideToWidth trims s (measured with the active font) until it plus a trailing
-// ellipsis fits within maxPx, so a proportional-font name never spills past its
-// cell into the neighbour. A string that already fits is returned unchanged; a
-// maxPx too small for even the ellipsis yields "…".
-func elideToWidth(s string, maxPx int) string {
-	if maxPx <= 0 {
-		return ""
-	}
-	if toolkit.TextWidth(s) <= maxPx {
-		return s
-	}
-	r := []rune(s)
-	for len(r) > 0 {
-		r = r[:len(r)-1]
-		if toolkit.TextWidth(string(r)+"…") <= maxPx {
-			return string(r) + "…"
-		}
-	}
-	return "…"
-}
-
 // SetQuery updates the launcher search query, driving the results + launcher.
 func (s *Scene) SetQuery(q string) { s.query.Set(q) }
 

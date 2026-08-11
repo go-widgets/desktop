@@ -40,12 +40,12 @@ func folderIcon(size int) *toolkit.Image {
 	)
 	return glyphImage(size, func(p *painter.PixelPainter) {
 		s := size
-		m := s / 7          // outer margin
-		top := s/3 - s/16   // folder top (body) line
-		rad := s / 12       // corner radius
+		m := s / 7        // outer margin
+		top := s/3 - s/16 // folder top (body) line
+		rad := s / 12     // corner radius
 		tabW := (s - 2*m) / 2
 		// Back tab, peeking above the body.
-		p.FillRoundRect(toolkit.Rect{X: m, Y: top - s/9, W: tabW, H: s/5}, rad, tab)
+		p.FillRoundRect(toolkit.Rect{X: m, Y: top - s/9, W: tabW, H: s / 5}, rad, tab)
 		// Body.
 		p.FillRoundRect(toolkit.Rect{X: m, Y: top, W: s - 2*m, H: s - top - m}, rad, body)
 		// Top lip highlight.
@@ -65,8 +65,8 @@ func fileIcon(size int) *toolkit.Image {
 	)
 	return glyphImage(size, func(p *painter.PixelPainter) {
 		s := size
-		mx := s / 4         // side margin (page is portrait, narrower than tall)
-		my := s / 8         // top/bottom margin
+		mx := s / 4 // side margin (page is portrait, narrower than tall)
+		my := s / 8 // top/bottom margin
 		rad := s / 14
 		w := s - 2*mx
 		h := s - 2*my
@@ -165,6 +165,17 @@ func lighten(c toolkit.RGBA, t float64) toolkit.RGBA {
 // blend interpolates from a to b by t in [0,1].
 func blend(a, b uint8, t float64) uint8 {
 	return uint8(float64(a) + (float64(b)-float64(a))*t)
+}
+
+// mutedInk blends the theme's surface text toward its background by t, for the
+// quiet secondary labels (list-view empty state, section headers).
+func mutedInk(th *toolkit.Theme, t float64) toolkit.RGBA {
+	return toolkit.RGBA{
+		R: blend(th.OnSurface.R, th.SurfaceAlt.R, t),
+		G: blend(th.OnSurface.G, th.SurfaceAlt.G, t),
+		B: blend(th.OnSurface.B, th.SurfaceAlt.B, t),
+		A: 0xFF,
+	}
 }
 
 // max1 clamps n to at least 1 (so a thin feature never vanishes at small sizes).

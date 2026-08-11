@@ -10,269 +10,158 @@ import (
 	"github.com/go-widgets/toolkit"
 )
 
-// columnView is the file manager's "Colonnes" (Miller) mode: each directory in
-// the current path is a vertical column of names; selecting a folder opens the
-// next column to its right, and the strip scrolls horizontally to keep the
-// deepest columns in view. A selected file opens a compact info/preview column.
-//
-// The toolkit has no Miller/column widget (a flagged gap — see
-// FINDER-TOOLKIT-GAPS.md), so columnView composes one column per directory from
-// a toolkit.ListBox (whose per-row ItemRenderer draws the type icon + name + a
-// disclosure chevron for folders) and lays them side by side itself.
+// columnView is a thin shell adapter over toolkit.ColumnBrowser (the Miller /
+// "Colonnes" widget the toolkit now ships). It implements the widget's
+// ColumnProvider over the shell's directory lister: each directory becomes a
+// column of type-icon + name rows (a folder carries a disclosure chevron and
+// opens the next column; a file opens the preview pane), and the whole column
+// cascade, horizontal scroll and preview come from the toolkit widget unchanged.
 type columnView struct {
 	toolkit.Base
 
-	theme  *toolkit.Theme
-	lister func(path string) (*shell.Dir, error)
-	iconFn func(shell.FileItem) *toolkit.Image
-	openFn func(shell.FileItem)
+	browser *toolkit.ColumnBrowser
+	lister  func(path string) (*shell.Dir, error)
+	iconFn  func(shell.FileItem) *toolkit.Image
+	openFn  func(shell.FileItem)
 
-	cols    []*millerCol
 	colW    int
-	scrollX int
+	rootKey string
 
-	// reusable per-row icon Image, bounds mutated per row.
-	rowIcon *toolkit.Image
-
-	// preview is the compact info column shown when a non-directory is selected.
-	preview *shell.FileItem
+	// items maps a node key (path) back to its FileItem so Preview can render the
+	// leaf's kind + size and a re-pick can open the real item.
+	items map[string]shell.FileItem
 }
 
-// millerCol is one directory column: its listing plus the ListBox that renders
-// it. selected is the row index chosen in this column (drives the next column).
-type millerCol struct {
-	path     string
-	dir      *shell.Dir
-	list     *toolkit.ListBox
-	selected int
-}
+// cbRowHeight mirrors toolkit.ColumnBrowser's per-row height, so cascadeFirst's
+// synthetic row clicks land on the intended rows.
+const cbRowHeight = 26
 
+// millerColW is the default column / preview width (mirrors the widget default).
 const millerColW = 220
 
-// newColumnView builds a Miller view rooted at rootPath, listing it into the
-// first column.
-func newColumnView(th *toolkit.Theme, lister func(string) (*shell.Dir, error),
+// newColumnView builds a Miller view over lister. iconFn resolves an item's
+// small leading type icon; openFn opens a re-picked leaf.
+func newColumnView(lister func(string) (*shell.Dir, error),
 	iconFn func(shell.FileItem) *toolkit.Image, openFn func(shell.FileItem)) *columnView {
 	cv := &columnView{
-		theme:   th,
-		lister:  lister,
-		iconFn:  iconFn,
-		openFn:  openFn,
-		colW:    millerColW,
-		rowIcon: toolkit.NewImageFit(nil, 0, 0),
+		lister: lister,
+		iconFn: iconFn,
+		openFn: openFn,
+		colW:   millerColW,
+		items:  map[string]shell.FileItem{},
 	}
+	cv.browser = toolkit.NewColumnBrowser(cv)
+	cv.browser.OnActivate = cv.activate
 	return cv
+}
+
+// Children implements toolkit.ColumnProvider: it lists key via the shell lister
+// and projects the directory into column nodes (folders are containers), or
+// rejects the key (ok=false) when the listing fails.
+func (cv *columnView) Children(key string) ([]toolkit.ColumnNode, bool) {
+	dir, err := cv.lister(key)
+	if err != nil || dir == nil {
+		return nil, false
+	}
+	nodes := make([]toolkit.ColumnNode, len(dir.Items))
+	for i, it := range dir.Items {
+		cv.items[it.Path] = it
+		nodes[i] = toolkit.ColumnNode{Name: it.Name, Key: it.Path, Icon: cv.iconFn(it), Container: it.IsDir}
+	}
+	return nodes, true
+}
+
+// Preview implements toolkit.ColumnProvider: the leaf's kind and human size,
+// shown under its name in the preview pane.
+func (cv *columnView) Preview(node toolkit.ColumnNode) []string {
+	it, ok := cv.items[node.Key]
+	if !ok {
+		return nil
+	}
+	return []string{it.TypeLabel(), it.HumanSize()}
+}
+
+// activate opens the re-picked leaf behind a node (the ColumnBrowser fires
+// OnActivate on a second pick of the same file).
+func (cv *columnView) activate(node toolkit.ColumnNode) {
+	if it, ok := cv.items[node.Key]; ok && cv.openFn != nil {
+		cv.openFn(it)
+	}
 }
 
 // SetRoot resets the strip to a single column listing rootPath.
 func (cv *columnView) SetRoot(rootPath string) {
-	cv.cols = nil
-	cv.preview = nil
-	cv.scrollX = 0
-	if col := cv.makeColumn(rootPath); col != nil {
-		cv.cols = []*millerCol{col}
-	}
-	cv.relayout()
+	cv.rootKey = rootPath
+	cv.browser.SetRoot(rootPath)
 }
 
-// makeColumn lists path and builds its column (or nil when the listing fails —
-// e.g. a permission error or a non-directory path).
-func (cv *columnView) makeColumn(path string) *millerCol {
-	dir, err := cv.lister(path)
-	if err != nil || dir == nil {
-		return nil
-	}
-	col := &millerCol{path: path, dir: dir, selected: -1}
-	lb := toolkit.NewListBox(nil)
-	lb.RowHeight = 26
-	names := make([]string, len(dir.Items))
-	for i, it := range dir.Items {
-		names[i] = it.Name
-	}
-	lb.Items = names
-	idx := len(cv.cols) // this column's position in the strip
-	lb.ItemRenderer = func(p painter.Painter, th *toolkit.Theme, rc toolkit.Rect, index int, item string, selected bool, ink toolkit.RGBA) {
-		cv.drawColRow(p, th, rc, dir, index, ink, selected)
-	}
-	lb.OnActivate = func(row int) { cv.onPick(idx, row) }
-	col.list = lb
-	return col
-}
-
-// onPick handles a row activation in column ci: a folder truncates the strip
-// after ci and opens the folder in a fresh column to the right; a file drops any
-// deeper columns and shows the preview (and opens on a re-pick).
-func (cv *columnView) onPick(ci, row int) {
-	if ci < 0 || ci >= len(cv.cols) {
-		return
-	}
-	col := cv.cols[ci]
-	if row < 0 || row >= len(col.dir.Items) {
-		return
-	}
-	item := col.dir.Items[row]
-	repick := col.selected == row
-	col.selected = row
-	col.list.Selected = row
-	cv.cols = cv.cols[:ci+1]
-
-	if item.IsDir {
-		cv.preview = nil
-		if next := cv.makeColumn(item.Path); next != nil {
-			cv.cols = append(cv.cols, next)
-		}
-	} else {
-		cv.preview = &item
-		if repick && cv.openFn != nil {
-			cv.openFn(item)
-		}
-	}
-	cv.relayout()
-}
-
-// drawColRow renders one column row: the small type icon, the name, and a
-// disclosure chevron on the right for a folder.
-func (cv *columnView) drawColRow(p painter.Painter, th *toolkit.Theme, rc toolkit.Rect, dir *shell.Dir, index int, ink toolkit.RGBA, selected bool) {
-	if index < 0 || index >= len(dir.Items) {
-		return
-	}
-	it := dir.Items[index]
-	const pad, iconPx = 8, 16
-	if img := cv.iconFn(it); img != nil {
-		iy := rc.Y + (rc.H-iconPx)/2
-		img.SetBounds(toolkit.Rect{X: rc.X + pad, Y: iy, W: iconPx, H: iconPx})
-		img.Draw(p, th)
-	}
-	tx := rc.X + pad + iconPx + pad
-	ty := rc.Y + (rc.H-toolkit.GlyphHeight())/2
-	toolkit.DrawText(p, tx, ty, elide(it.Name, (cv.colW-40)/7), ink)
-	if it.IsDir {
-		// Disclosure chevron ">" at the right edge.
-		chevX := rc.X + rc.W - pad - 6
-		cy := rc.Y + rc.H/2
-		for d := 0; d < 5; d++ {
-			p.FillRect(toolkit.Rect{X: chevX + d, Y: cy - (4 - d), W: 1, H: 1}, ink)
-			p.FillRect(toolkit.Rect{X: chevX + d, Y: cy + (4 - d), W: 1, H: 1}, ink)
-		}
-	}
-}
-
-// SetBounds records bounds and lays out the columns.
+// SetBounds records bounds and forwards them to the browser.
 func (cv *columnView) SetBounds(r toolkit.Rect) {
 	cv.Base.SetBounds(r)
-	cv.relayout()
+	cv.browser.SetBounds(r)
 }
 
-// visibleWidth is the total pixel width of all columns plus the preview.
-func (cv *columnView) contentWidth() int {
-	w := len(cv.cols) * cv.colW
-	if cv.preview != nil {
-		w += cv.colW
-	}
-	return w
-}
+// Draw paints the column strip + preview pane.
+func (cv *columnView) Draw(p painter.Painter, th *toolkit.Theme) { cv.browser.Draw(p, th) }
 
-// relayout positions each column left to right, auto-scrolling so the deepest
-// columns stay in view.
-func (cv *columnView) relayout() {
-	b := cv.Bounds()
-	if b.W <= 0 {
-		return
-	}
-	// Anchor right: keep the newest columns visible.
-	cv.scrollX = cv.contentWidth() - b.W
-	if cv.scrollX < 0 {
-		cv.scrollX = 0
-	}
-	x := b.X - cv.scrollX
-	for _, col := range cv.cols {
-		col.list.SetBounds(toolkit.Rect{X: x, Y: b.Y, W: cv.colW, H: b.H})
-		x += cv.colW
-	}
-}
+// OnEvent forwards a click/scroll to the browser (which routes it to the column
+// under the pointer).
+func (cv *columnView) OnEvent(ev toolkit.Event) { cv.browser.OnEvent(ev) }
 
-// Draw paints the columns, their separators and the preview pane, clipped to
-// the view bounds so the horizontally-scrolled strip stays within its region.
-func (cv *columnView) Draw(p painter.Painter, th *toolkit.Theme) {
-	b := cv.Bounds()
-	p.FillRect(b, th.Surface)
-	clipTo(p, b, func() {
-		x := b.X - cv.scrollX
-		for _, col := range cv.cols {
-			col.list.Draw(p, th)
-			// Column separator hairline.
-			p.FillRect(toolkit.Rect{X: x + cv.colW - 1, Y: b.Y, W: 1, H: b.H}, th.Border)
-			x += cv.colW
-		}
-		if cv.preview != nil {
-			cv.drawPreview(p, th, toolkit.Rect{X: x, Y: b.Y, W: cv.colW, H: b.H})
-		}
-	})
-}
-
-// drawPreview paints the compact file info column (icon + name + type + size).
-func (cv *columnView) drawPreview(p painter.Painter, th *toolkit.Theme, r toolkit.Rect) {
-	p.FillRect(r, th.SurfaceAlt)
-	it := *cv.preview
-	const big = 96
-	if img := cv.iconFn(it); img != nil {
-		img.SetBounds(toolkit.Rect{X: r.X + (r.W-big)/2, Y: r.Y + 30, W: big, H: big})
-		img.Draw(p, th)
-	}
-	cx := func(s string) int { return r.X + (r.W-toolkit.TextWidth(s))/2 }
-	name := elide(it.Name, (cv.colW-20)/7)
-	toolkit.DrawText(p, cx(name), r.Y+30+big+16, name, th.OnSurface)
-	kind := it.TypeLabel()
-	toolkit.DrawText(p, cx(kind), r.Y+30+big+40, kind, mutedInk(th, 0.35))
-	size := it.HumanSize()
-	toolkit.DrawText(p, cx(size), r.Y+30+big+60, size, mutedInk(th, 0.35))
-}
-
-// OnEvent routes a click/scroll to the column under the pointer.
-func (cv *columnView) OnEvent(ev toolkit.Event) {
-	switch ev.Kind {
-	case toolkit.EventClick, toolkit.EventScroll:
-		if col := cv.columnAt(ev.X); col != nil {
-			col.list.OnEvent(ev)
-		}
-	}
-}
-
-// columnAt returns the column whose horizontal band contains x, or nil.
-func (cv *columnView) columnAt(x int) *millerCol {
-	for _, col := range cv.cols {
-		cb := col.list.Bounds()
-		if x >= cb.X && x < cb.X+cb.W {
-			return col
-		}
-	}
-	return nil
-}
-
-// ColumnCount is the number of open directory columns (for tests).
-func (cv *columnView) ColumnCount() int { return len(cv.cols) }
+// ColumnCount is the number of open directory columns (for tests / screenshots).
+func (cv *columnView) ColumnCount() int { return cv.browser.ColumnCount() }
 
 // cascadeFirst opens the first sub-directory of each rightmost column until
-// maxCols columns are shown (or no deeper folder exists) — the Miller cascade a
-// user builds by clicking down a folder chain, used to populate a screenshot
-// (and exercised by tests).
+// maxCols columns show (or no deeper folder exists) — the folder chain a user
+// builds by clicking down a folder tree, used to populate the column-view
+// screenshot. It drives the ColumnBrowser through synthetic row clicks (the
+// widget exposes no programmatic pick), walking the first-folder chain via the
+// lister so it knows which row to click in the newest column.
 func (cv *columnView) cascadeFirst(maxCols int) {
-	for len(cv.cols) > 0 && len(cv.cols) < maxCols {
-		last := cv.cols[len(cv.cols)-1]
-		fi := -1
-		for i, it := range last.dir.Items {
-			if it.IsDir {
-				fi = i
-				break
-			}
-		}
-		if fi < 0 {
+	// Cascade under a synthetic, left-anchored layout wide and tall enough that
+	// no horizontal scroll kicks in and every column's first rows are visible, so
+	// a click on the deepest column's first-folder row lands predictably whatever
+	// the pane's real (possibly not-yet-assigned) bounds are. The caller re-lays
+	// the view to its real bounds immediately afterwards (open columns persist).
+	cv.SetBounds(toolkit.Rect{W: (maxCols + 1) * cv.colW, H: 64 * cbRowHeight})
+	key := cv.rootKey
+	for cv.ColumnCount() > 0 && cv.ColumnCount() < maxCols {
+		dir, err := cv.lister(key)
+		if err != nil || dir == nil {
 			break
 		}
-		before := len(cv.cols)
-		cv.onPick(len(cv.cols)-1, fi)
-		if len(cv.cols) == before { // no new column opened; avoid a spin
+		row, child, ok := firstContainer(dir)
+		if !ok {
 			break
 		}
+		before := cv.ColumnCount()
+		// Click the first-folder row in the rightmost (deepest) column, in the
+		// widget-local coordinates the ColumnBrowser routes: X inside the deepest
+		// column band (left-anchored, so column ci starts at ci*colW), Y at the
+		// row centre (0-based from the strip top).
+		ci := cv.ColumnCount() - 1
+		cv.browser.OnEvent(toolkit.Event{
+			Kind: toolkit.EventClick,
+			X:    ci*cv.colW + cv.colW/2,
+			Y:    row*cbRowHeight + cbRowHeight/2,
+		})
+		if cv.ColumnCount() == before {
+			break // no new column opened; avoid a spin
+		}
+		key = child.Path
 	}
 }
+
+// firstContainer returns the row index and item of the first directory entry in
+// dir, or ok=false when the directory has no sub-directory.
+func firstContainer(dir *shell.Dir) (int, shell.FileItem, bool) {
+	for i, it := range dir.Items {
+		if it.IsDir {
+			return i, it, true
+		}
+	}
+	return 0, shell.FileItem{}, false
+}
+
+// columnView implements toolkit.ColumnProvider.
+var _ toolkit.ColumnProvider = (*columnView)(nil)
