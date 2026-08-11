@@ -13,8 +13,8 @@ require (
 	github.com/go-opentype/fonts v0.6.0
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.5.0
-	github.com/go-widgets/painter v0.7.1
-	github.com/go-widgets/toolkit v0.140.0
+	github.com/go-widgets/painter v0.8.0
+	github.com/go-widgets/toolkit v0.142.0
 	github.com/go-widgets/window v0.12.0
 )
 
