@@ -16,6 +16,7 @@ require (
 	github.com/go-widgets/painter v0.8.0
 	github.com/go-widgets/toolkit v0.142.0
 	github.com/go-widgets/window v0.12.0
+	github.com/sergeymakinen/go-ico v1.0.0
 	howett.net/plist v1.0.1
 )
 
@@ -28,6 +29,7 @@ require (
 	github.com/go-opentype/opentype v0.5.0 // indirect
 	github.com/go-opentype/shape v0.4.0 // indirect
 	github.com/rkoesters/xdg v0.0.1 // indirect
+	github.com/sergeymakinen/go-bmp v1.0.0 // indirect
 	golang.org/x/image v0.44.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 )
