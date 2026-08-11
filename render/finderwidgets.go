@@ -47,15 +47,3 @@ func (c *vcenterWidget) SetBounds(r toolkit.Rect) {
 
 func (c *vcenterWidget) Draw(p painter.Painter, th *toolkit.Theme) { c.w.Draw(p, th) }
 func (c *vcenterWidget) OnEvent(ev toolkit.Event)                  { c.w.OnEvent(ev) }
-
-// clipTo runs fn with the painter clipped to r when the back-end supports
-// clipping (the pixel painter does), so a content view's scrolling rows never
-// paint outside their region — into the toolbar above or the dock below. On a
-// non-clipping back-end fn simply runs unclipped (the original behaviour).
-func clipTo(p painter.Painter, r toolkit.Rect, fn func()) {
-	if clr, ok := p.(painter.Clipper); ok {
-		clr.PushClip(r)
-		defer clr.PopClip()
-	}
-	fn()
-}

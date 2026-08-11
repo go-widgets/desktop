@@ -5,12 +5,14 @@
 package render
 
 import (
+	"errors"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/go-widgets/desktop/shell"
 	"github.com/go-widgets/mvvm"
+	"github.com/go-widgets/painter"
 	"github.com/go-widgets/toolkit"
 )
 
@@ -76,6 +78,7 @@ type FinderPane struct {
 
 	// widgets.
 	root       *toolkit.Border
+	overlay    *finderRoot // returned by Root(): draws root + the modal dialog
 	toolbar    *toolkit.HBox
 	titleLabel *toolkit.Label
 	switcher   *toolkit.ViewSwitcher
@@ -85,6 +88,10 @@ type FinderPane struct {
 	listView   *listView
 	iconView   *iconView
 	columnView *columnView
+
+	// dialog is the modal move-confirmation (or error) overlay, non-nil while a
+	// dialog is shown; the overlay routes input to it exclusively while it is up.
+	dialog *toolkit.Dialog
 }
 
 // NewFinderPane builds the file browser. Places defaults to shell.DefaultPlaces
@@ -142,8 +149,11 @@ func (f *FinderPane) build() {
 	f.pictureGlyph = pictureIcon(DefaultIconSize)
 	f.placeGlyphs = buildPlaceGlyphs(sbIconPx, placeGlyphInk(f.theme))
 
-	// Sidebar.
+	// Sidebar. A file dropped on a directory row requests a move into it.
 	f.sidebar = newSidebar(f.theme, f.placeGlyphs, f.cfg.Places, f.navigatePlace)
+	f.sidebar.onFileDrop = func(dest shell.Place, src string) {
+		f.requestMove(src, dest.Path, dest.Label)
+	}
 
 	// Toolbar: title + view switcher + icon-size slider.
 	f.titleLabel = toolkit.NewLabel("")
@@ -158,10 +168,13 @@ func (f *FinderPane) build() {
 	f.toolbar.AddFixed(f.vcenter(f.switcher, toolkit.ViewSwitcherH), switcherW)
 	f.toolbar.AddFixed(f.vcenter(f.slider, 18), sliderW)
 
-	// Content views over the shared model.
+	// Content views over the shared model. A file dropped on a folder cell/row in
+	// the icon or list view requests a move into that folder.
 	f.listView = newListView(f.fileModel, f.theme, f.listIcon, f.open, f.sortBy, f.emptyMessage)
+	f.listView.onFileDrop = f.dropIntoFolder
 	f.iconView = newIconView(f.fileModel, int(f.iconSize.Get()), f.cellImage, f.open, f.emptyMessage)
-	f.columnView = newColumnView(f.theme, f.cfg.Lister, f.listIcon, f.open)
+	f.iconView.onFileDrop = f.dropIntoFolder
+	f.columnView = newColumnView(f.cfg.Lister, f.listIcon, f.open)
 
 	f.content = toolkit.NewStack()
 	f.content.AddPage("liste", f.listView)
@@ -176,6 +189,16 @@ func (f *FinderPane) build() {
 	f.root.West = f.sidebar
 	f.root.WestSize = finderSidebarW
 	f.root.Center = f.content
+
+	// The overlay wraps the border so a modal confirmation dialog can paint over
+	// (and grab input from) the whole pane.
+	f.overlay = &finderRoot{f: f}
+}
+
+// dropIntoFolder is the icon/list views' file-drop handler: it requests a move
+// of srcPath into the folder at dstDir (labelled by its base name).
+func (f *FinderPane) dropIntoFolder(dstDir, srcPath string) {
+	f.requestMove(srcPath, dstDir, filepath.Base(dstDir))
 }
 
 // padded wraps w in a small left inset so the toolbar title does not hug the
@@ -302,7 +325,7 @@ func (f *FinderPane) setDir(dir *shell.Dir) {
 	f.cwd.Set(dir.Path)
 	f.titleLabel.Text = titleFor(dir.Path)
 	f.sidebar.SetActive(dir.Path)
-	f.iconView.sel = -1
+	f.iconView.clearSelection()
 	f.listView.Refresh()
 }
 
@@ -331,11 +354,13 @@ func (f *FinderPane) sortBy(col int, asc bool) {
 func (f *FinderPane) emptyMessage() string { return f.emptyMsg }
 
 // relayout re-lays out the whole pane (after a navigation / view / size change)
-// so the swapped or resized content is positioned before the next paint.
+// so the swapped or resized content is positioned before the next paint, and
+// re-centres the modal dialog when one is up.
 func (f *FinderPane) relayout() {
 	if b := f.root.Bounds(); b.W > 0 && b.H > 0 {
 		f.root.SetBounds(b)
 	}
+	f.layoutDialog()
 }
 
 // cellImage resolves a file item to its icon-view Image plus whether that Image
@@ -375,8 +400,9 @@ func (f *FinderPane) listIcon(it shell.FileItem) *toolkit.Image {
 	return img
 }
 
-// Root returns the composed Border for embedding in the shell.
-func (f *FinderPane) Root() toolkit.Widget { return f.root }
+// Root returns the composed pane (the border plus its modal-dialog overlay) for
+// embedding in the shell.
+func (f *FinderPane) Root() toolkit.Widget { return f.overlay }
 
 // FileCount is the number of items in the current directory model.
 func (f *FinderPane) FileCount() int { return f.fileModel.Len() }
@@ -398,6 +424,186 @@ func (f *FinderPane) CascadeColumns(n int) {
 	f.SetView(ViewColumns)
 	f.columnView.cascadeFirst(n)
 	f.relayout()
+}
+
+// Finder dialog metrics.
+const (
+	finderDialogW = 420
+	finderDialogH = 148
+)
+
+// finderScrim dims the pane behind the modal dialog (a ~40% black wash the pixel
+// painter src-over composites).
+var finderScrim = toolkit.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x66}
+
+// finderRoot wraps the Finder's Border with a modal-dialog overlay. Normally it
+// just forwards layout, paint and input to the border; while a confirmation (or
+// error) dialog is up it dims the pane and grabs every event for the dialog, so
+// the move confirmation is truly modal.
+type finderRoot struct {
+	toolkit.Base
+	f *FinderPane
+}
+
+// SetBounds records the overlay bounds, forwards them to the border and
+// re-centres any open dialog.
+func (w *finderRoot) SetBounds(r toolkit.Rect) {
+	w.Base.SetBounds(r)
+	w.f.root.SetBounds(r)
+	w.f.layoutDialog()
+}
+
+// Draw paints the border, then (when a dialog is up) the dim scrim and the
+// dialog on top.
+func (w *finderRoot) Draw(p painter.Painter, th *toolkit.Theme) {
+	w.f.root.Draw(p, th)
+	if w.f.dialog != nil {
+		p.FillRect(w.Bounds(), finderScrim)
+		w.f.dialog.Draw(p, th)
+	}
+}
+
+// OnEvent routes input to the border, unless a dialog is up — then it forwards
+// exclusively to the dialog (translated into the dialog's own local coordinate
+// space, which toolkit.Dialog.OnEvent expects).
+func (w *finderRoot) OnEvent(ev toolkit.Event) {
+	if w.f.dialog != nil {
+		w.f.dialog.OnEvent(dialogLocalEvent(ev, w.Bounds(), w.f.dialog.Bounds()))
+		return
+	}
+	w.f.root.OnEvent(ev)
+}
+
+// dialogLocalEvent rewrites an overlay-local event into the dialog's own local
+// space, mirroring the toolkit's internal parent→child event translation.
+func dialogLocalEvent(ev toolkit.Event, parent, child toolkit.Rect) toolkit.Event {
+	ev.X = ev.X + parent.X - child.X
+	ev.Y = ev.Y + parent.Y - child.Y
+	return ev
+}
+
+// requestMove pops the move-confirmation dialog for moving srcPath into destDir
+// (shown to the user as destLabel). A no-op — src already inside destDir — is
+// refused silently: no dialog, and the filesystem is left untouched.
+func (f *FinderPane) requestMove(srcPath, destDir, destLabel string) {
+	if srcPath == "" || destDir == "" {
+		return
+	}
+	if filepath.Clean(filepath.Dir(srcPath)) == filepath.Clean(destDir) {
+		return // dropping a file back into its own directory: nothing to do
+	}
+	body := centeredLabel("Déplacer « " + filepath.Base(srcPath) + " » vers « " + destLabel + " » ?")
+	cancel := toolkit.NewButton("Annuler", f.closeDialog)
+	confirm := toolkit.NewButton("Déplacer", func() { f.confirmMove(srcPath, destDir) })
+	f.dialog = toolkit.NewDialog("Déplacer", body, cancel, confirm)
+	f.dialog.OnClose = f.closeDialog
+	f.layoutDialog()
+}
+
+// confirmMove performs the confirmed move: it closes the dialog, mutates the
+// filesystem via shell.MoveFile (the ONLY point the real files change), refreshes
+// the affected views, and on failure replaces the dialog with a dismissable
+// error message rather than crashing.
+func (f *FinderPane) confirmMove(srcPath, destDir string) {
+	f.closeDialog()
+	if _, err := shell.MoveFile(srcPath, destDir); err != nil {
+		f.showMoveError(err)
+		return
+	}
+	f.refreshAfterMove()
+}
+
+// showMoveError shows a dismissable dialog explaining why a move failed.
+func (f *FinderPane) showMoveError(err error) {
+	f.dialog = toolkit.NewDialog("Déplacement impossible",
+		centeredLabel(moveErrorMessage(err)), toolkit.NewButton("OK", f.closeDialog))
+	f.dialog.OnClose = f.closeDialog
+	f.layoutDialog()
+}
+
+// closeDialog dismisses the modal dialog (if any) and re-lays the pane so the
+// scrim clears on the next paint.
+func (f *FinderPane) closeDialog() {
+	f.dialog = nil
+	if b := f.root.Bounds(); b.W > 0 && b.H > 0 {
+		f.root.SetBounds(b)
+	}
+}
+
+// layoutDialog centres the modal dialog within the overlay bounds (clamped to
+// the pane when the pane is smaller than the dialog).
+func (f *FinderPane) layoutDialog() {
+	if f.dialog == nil {
+		return
+	}
+	b := f.overlay.Bounds()
+	if b.W <= 0 || b.H <= 0 {
+		b = f.root.Bounds()
+	}
+	w, h := finderDialogW, finderDialogH
+	if w > b.W {
+		w = b.W
+	}
+	if h > b.H {
+		h = b.H
+	}
+	f.dialog.SetBounds(toolkit.Rect{X: b.X + (b.W-w)/2, Y: b.Y + (b.H-h)/2, W: w, H: h})
+}
+
+// refreshAfterMove re-lists the current directory (the moved file left it, or a
+// dropped file arrived in it) so every view reflects the new filesystem state.
+func (f *FinderPane) refreshAfterMove() {
+	if p := f.cwd.Get(); p != "" {
+		f.Navigate(p)
+		return
+	}
+	f.relayout()
+}
+
+// DemoMoveConfirm pops the move-confirmation dialog for the first file over the
+// first folder in the current directory — a screenshot/testing helper so the
+// confirmation overlay can be captured without a live drag. It is a no-op when
+// the current directory has no file + folder pair.
+func (f *FinderPane) DemoMoveConfirm() {
+	var src, dstDir, dstLabel string
+	for i := 0; i < f.fileModel.Len(); i++ {
+		it := f.fileModel.At(i)
+		switch {
+		case it.IsDir && dstDir == "":
+			dstDir, dstLabel = it.Path, it.Name
+		case !it.IsDir && src == "":
+			src = it.Path
+		}
+	}
+	if src != "" && dstDir != "" {
+		f.requestMove(src, dstDir, dstLabel)
+	}
+}
+
+// DialogActive reports whether a modal dialog (move confirmation or error) is
+// currently shown — for the capture CLI and tests.
+func (f *FinderPane) DialogActive() bool { return f.dialog != nil }
+
+// centeredLabel builds a horizontally + vertically centred dialog-body label.
+func centeredLabel(text string) *toolkit.Label {
+	l := toolkit.NewLabel(text)
+	l.Align = toolkit.AlignCenter
+	l.VAlign = toolkit.VMiddle
+	return l
+}
+
+// moveErrorMessage maps a shell.MoveFile error to a French, user-facing sentence.
+func moveErrorMessage(err error) string {
+	switch {
+	case errors.Is(err, shell.ErrMoveExists):
+		return "Un élément du même nom existe déjà à cet endroit."
+	case errors.Is(err, shell.ErrMoveIntoSelf):
+		return "L'élément se trouve déjà dans ce dossier."
+	case errors.Is(err, shell.ErrMoveNotDir):
+		return "La destination n'est pas un dossier."
+	default:
+		return "Le déplacement a échoué : " + err.Error()
+	}
 }
 
 // titleFor is the toolbar title for a path: its base name, or the path itself
