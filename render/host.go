@@ -115,7 +115,7 @@ func (h *hostShell) HitTest(px, py int) bool { return h.Bounds().Contains(px, py
 // exactly as the plain-Widget adapter) and then records the damage the event
 // produced.
 func (h *hostShell) OnEvent(ev toolkit.Event) {
-	h.sc.root.OnEvent(ev)
+	h.sc.routeInput(ev)
 	h.invalidateFor(ev)
 }
 
