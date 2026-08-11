@@ -92,6 +92,15 @@ type FinderPane struct {
 	// dialog is the modal move-confirmation (or error) overlay, non-nil while a
 	// dialog is shown; the overlay routes input to it exclusively while it is up.
 	dialog *toolkit.Dialog
+
+	// clip is the file clipboard driving the ⌘C / ⌘X / ⌘V (Ctrl on Linux/Windows)
+	// keyboard file operations; a path marked for a cut is drawn dimmed in the
+	// views until it is pasted or the clipboard is cleared.
+	clip shell.Clipboard
+
+	// pending holds the paste a confirmation dialog will apply on confirm, so the
+	// filesystem is mutated only when the user accepts a move / overwrite.
+	pending *pendingPaste
 }
 
 // NewFinderPane builds the file browser. Places defaults to shell.DefaultPlaces
@@ -364,10 +373,22 @@ func (f *FinderPane) relayout() {
 }
 
 // cellImage resolves a file item to its icon-view Image plus whether that Image
-// is a real raster thumbnail (so the cell can back a dark photo with a light
-// chip): a cached thumbnail when the thumbnail policy supplies one, otherwise a
-// theme icon or a tasteful drawn glyph (folder / picture / document).
+// is a real raster thumbnail, dimming the icon to a translucent "ghost" while
+// the item is marked for a cut (⌘X) — the Finder/Explorer cue that it will move
+// on the next paste.
 func (f *FinderPane) cellImage(it shell.FileItem) (*toolkit.Image, bool) {
+	img, raster := f.cellImageRaw(it)
+	if img != nil && f.clip.IsCut(it.Path) {
+		return dimImage(img), raster
+	}
+	return img, raster
+}
+
+// cellImageRaw resolves a file item to its icon-view Image plus whether that
+// Image is a real raster thumbnail (so the cell can back a dark photo with a
+// light chip): a cached thumbnail when the thumbnail policy supplies one,
+// otherwise a theme icon or a tasteful drawn glyph (folder / picture / document).
+func (f *FinderPane) cellImageRaw(it shell.FileItem) (*toolkit.Image, bool) {
 	if !it.IsDir && f.thumbKey != nil {
 		if k := f.thumbKey(it); k != "" {
 			if img, ok := f.cfg.Icons.TryImage(k); ok {
@@ -465,10 +486,15 @@ func (w *finderRoot) Draw(p painter.Painter, th *toolkit.Theme) {
 
 // OnEvent routes input to the border, unless a dialog is up — then it forwards
 // exclusively to the dialog (translated into the dialog's own local coordinate
-// space, which toolkit.Dialog.OnEvent expects).
+// space, which toolkit.Dialog.OnEvent expects). A keyboard file-operation
+// shortcut (⌘C/⌘X/⌘V and ⌘⌥V, Ctrl on Linux/Windows) is consumed here before it
+// reaches the border, so it works regardless of which sub-view has the pointer.
 func (w *finderRoot) OnEvent(ev toolkit.Event) {
 	if w.f.dialog != nil {
 		w.f.dialog.OnEvent(dialogLocalEvent(ev, w.Bounds(), w.f.dialog.Bounds()))
+		return
+	}
+	if ev.Kind == toolkit.EventKeyDown && w.f.onShortcut(ev) {
 		return
 	}
 	w.f.root.OnEvent(ev)
