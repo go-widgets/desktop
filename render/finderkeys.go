@@ -192,8 +192,8 @@ func (f *FinderPane) refreshAndSelect(dir, path string) {
 }
 
 // selectPath selects the model row whose path matches, in whichever view is
-// active (icon or list). A path not present (or the column view) leaves the
-// selection unchanged.
+// active (list, icon or gallery). A path not present (or the column view, which
+// has no single-selection model here) leaves the selection unchanged.
 func (f *FinderPane) selectPath(path string) {
 	path = filepath.Clean(path)
 	idx := -1
@@ -215,12 +215,18 @@ func (f *FinderPane) selectPath(path string) {
 		// (before the first paint) is not clamped away.
 		f.iconView.syncCells()
 		f.iconView.grid.SetSelected(idx)
+	case ViewGallery:
+		// The gallery validates a selection against its item count, filled from the
+		// model at Draw time; sync it first so a programmatic select (before the
+		// first paint) is not clamped away.
+		f.galleryView.syncItems()
+		f.galleryView.SetSelected(idx)
 	}
 }
 
-// selectedItem returns the file item selected in the active view (icon or list),
-// or false when nothing is selected (or the column view is active, which has no
-// single-selection model here).
+// selectedItem returns the file item selected in the active view (list, icon or
+// gallery), or false when nothing is selected (or the column view is active,
+// which has no single-selection model here).
 func (f *FinderPane) selectedItem() (shell.FileItem, bool) {
 	idx := -1
 	switch f.viewMode.Get() {
@@ -228,6 +234,8 @@ func (f *FinderPane) selectedItem() (shell.FileItem, bool) {
 		idx = f.listView.table.Selected
 	case ViewIcons:
 		idx = f.iconView.grid.Selected()
+	case ViewGallery:
+		idx = f.galleryView.Selected()
 	}
 	if idx < 0 || idx >= f.fileModel.Len() {
 		return shell.FileItem{}, false

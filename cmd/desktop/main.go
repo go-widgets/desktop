@@ -90,7 +90,7 @@ func run(args []string, errw io.Writer) int {
 	fs.IntVar(&o.height, "h", 600, "render height")
 	fs.BoolVar(&o.light, "light", false, "use the light theme")
 	fs.BoolVar(&o.embedded, "embedded", false, "use the embedded (browser) app source instead of scanning the filesystem — renders the exact scene the wasmdesk client shows")
-	fs.StringVar(&o.view, "view", "", "file-manager view mode: liste | vignettes | colonnes")
+	fs.StringVar(&o.view, "view", "", "file-manager view mode: liste | vignettes | colonnes | galerie")
 	fs.IntVar(&o.iconSize, "icon-size", 0, "Vignettes icon size in pixels (32..128)")
 	fs.StringVar(&o.place, "place", "", "navigate the finder to a sidebar place: reseau | corbeille | accueil | volume")
 	fs.BoolVar(&o.confirmMove, "confirm-move", false, "pop the move-confirmation dialog (first file over first folder) — for a screenshot of the drag-to-move confirmation")
@@ -182,6 +182,13 @@ func applyFinderOptions(sc *render.Scene, o options) {
 		// For a screenshot, open a few levels so the Miller cascade is visible.
 		if o.capture != "" {
 			sc.Finder().CascadeColumns(4)
+		}
+	case "galerie", "gallery":
+		sc.Finder().SetView(render.ViewGallery)
+		// For a screenshot, select the first image so the big preview shows a real
+		// photo rather than the folder that sorts first.
+		if o.capture != "" {
+			sc.Finder().FocusGalleryImage()
 		}
 	}
 	if o.iconSize > 0 {
