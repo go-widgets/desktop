@@ -16,6 +16,7 @@ require (
 	github.com/go-widgets/painter v0.8.0
 	github.com/go-widgets/toolkit v0.142.0
 	github.com/go-widgets/window v0.12.0
+	howett.net/plist v1.0.1
 )
 
 require (
