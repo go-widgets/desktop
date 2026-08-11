@@ -1,6 +1,6 @@
 # Finder file browser — captures
 
-_Horodate: 2026-08-11 12:53 CEST_ — rendered via `cmd/desktop -capture`. The
+_Horodate: 2026-08-11 14:04 CEST_ — rendered via `cmd/desktop -capture`. The
 four views are now composed from the **toolkit** Finder widgets
 (`toolkit.SourceList` / `IconGrid` / `ColumnBrowser` / `GalleryView`, toolkit
 v0.142.0) through thin shell adapters; the appearance is preserved from the
@@ -22,12 +22,22 @@ toolbar, and the active view.
 | `2026-08-11-finder-galerie.png` | **Galerie** (`toolkit.GalleryView`) — a large preview of the selected item filling the top region (a real go-thumbnail photo, its filename in the caption band), and a horizontally-scrolling filmstrip below with real thumbnails (folder / document glyphs otherwise); the selected thumbnail carries the accent ring. Same thumbnail path as Vignettes. |
 | `2026-08-11-finder-move-confirm.png` | **Drag-to-move confirmation** — a file dropped on a folder pops the modal « Déplacer «…» vers «…» ? » dialog (Annuler / Déplacer) over a dimmed pane. The real filesystem is mutated only after **Déplacer**. |
 
+All captures are rendered from **synthetic content only** — the embedded
+(browser) app source for the launcher + dock, and either the embedded virtual
+directory or a throwaway fixture directory of fake folders and generated
+placeholder images for the file grid. Never point a committed capture at a real
+home / Pictures / Applications: `-dir "$HOME"` on a populated machine would leak
+personal files and the real installed-app inventory into the image.
+
 Reproduce, e.g.:
 
-```
-go run ./cmd/desktop -embedded -view liste          -w 960 -h 600 -capture liste.png
-go run ./cmd/desktop -embedded -view vignettes      -w 960 -h 600 -capture vignettes.png
-go run ./cmd/desktop -dir "$HOME" -view colonnes     -w 960 -h 600 -capture colonnes.png
-go run ./cmd/desktop -dir <images> -view galerie     -w 960 -h 600 -capture galerie.png
+```sh
+go run ./cmd/desktop -embedded -view liste     -w 960 -h 600 -capture liste.png
+go run ./cmd/desktop -embedded -view vignettes -w 960 -h 600 -capture vignettes.png
+go run ./cmd/desktop -embedded -view galerie   -w 960 -h 600 -capture galerie.png
 go run ./cmd/desktop -embedded -view vignettes -confirm-move -w 960 -h 600 -capture move.png
+# Colonnes needs a populated tree for the Miller cascade: point -dir at a
+# throwaway SYNTHETIC fixture (fake folders + generated placeholder images),
+# never a real directory.
+go run ./cmd/desktop -dir <synthetic-fixture> -view colonnes -w 960 -h 600 -capture colonnes.png
 ```
