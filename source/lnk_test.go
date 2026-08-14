@@ -201,8 +201,8 @@ func TestParseLinkSuffixAndOutOfRangeOffsets(t *testing.T) {
 	// Zero base offset -> ansizAt(rel<=0) returns "" ; huge suffix offset ->
 	// ansizAt(rel>=len) returns "" ; empty target then falls back to relative.
 	li := ansiLinkInfo(`C:\x\y.exe`, "")
-	binary.LittleEndian.PutUint32(li[16:20], 0)     // base offset 0
-	binary.LittleEndian.PutUint32(li[24:28], 9999)  // suffix offset out of range
+	binary.LittleEndian.PutUint32(li[16:20], 0)    // base offset 0
+	binary.LittleEndian.PutUint32(li[24:28], 9999) // suffix offset out of range
 	b2 := &lnkBuilder{}
 	b2.flags |= flagHasLinkInfo
 	b2.linkInfo = li
@@ -223,8 +223,8 @@ func TestParseLinkUnicodeOffsetGuards(t *testing.T) {
 	ansiPath := append([]byte(`C:\ansi.exe`), 0)
 	full := append(li, ansiPath...)
 	binary.LittleEndian.PutUint32(full[0:4], uint32(len(full)))
-	binary.LittleEndian.PutUint32(full[28:32], 0)                  // unicode off = 0
-	binary.LittleEndian.PutUint32(full[16:20], uint32(len(li)))    // ansi base
+	binary.LittleEndian.PutUint32(full[28:32], 0)               // unicode off = 0
+	binary.LittleEndian.PutUint32(full[16:20], uint32(len(li))) // ansi base
 	b := &lnkBuilder{}
 	b.flags |= flagHasLinkInfo
 	b.linkInfo = full
