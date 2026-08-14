@@ -9,6 +9,7 @@ require (
 	github.com/go-freedesktop/mime v0.1.0
 	github.com/go-freedesktop/mimeapps v0.1.0
 	github.com/go-freedesktop/notifications v0.4.0
+	github.com/go-gfx/gfx v0.1.0
 	github.com/go-opentype/fonts v0.6.0
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.5.0
@@ -30,6 +31,6 @@ require (
 	github.com/go-opentype/shape v0.4.0 // indirect
 	github.com/rkoesters/xdg v0.0.1 // indirect
 	github.com/sergeymakinen/go-bmp v1.0.0 // indirect
-	golang.org/x/image v0.44.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/image v0.45.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 )

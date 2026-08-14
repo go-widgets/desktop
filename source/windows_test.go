@@ -204,7 +204,7 @@ func TestCategoryOf(t *testing.T) {
 
 func TestReadShortcutMissingFile(t *testing.T) {
 	// A path that cannot be read degrades to the base name with no target.
-	s := readShortcut(filepath.Join(t.TempDir(), "Ghost.lnk"), "Cat")
+	s := readShortcut(filepath.Join(t.TempDir(), "Ghost.lnk"), "Cat", 0)
 	if s.name != "Ghost" || s.target != "" {
 		t.Errorf("degraded shortcut = %+v", s)
 	}
@@ -217,40 +217,40 @@ func TestReadShortcutMissingFile(t *testing.T) {
 func TestReadWindowsIcon(t *testing.T) {
 	dir := t.TempDir()
 	// Empty and quoted-empty locations yield nil.
-	if readWindowsIcon("") != nil || readWindowsIcon(`""`) != nil {
+	if readWindowsIcon("", 0) != nil || readWindowsIcon(`""`, 0) != nil {
 		t.Error("empty icon location should be nil")
 	}
 	// Missing file yields nil.
-	if readWindowsIcon(filepath.Join(dir, "absent.ico")) != nil {
+	if readWindowsIcon(filepath.Join(dir, "absent.ico"), 0) != nil {
 		t.Error("missing icon file should be nil")
 	}
 	// A valid .ico decodes.
 	ico := filepath.Join(dir, "a.ico")
 	mustWrite(t, ico, buildICO(icoEntry{16, 16, dib32(16, 16)}))
-	if b := readWindowsIcon(`"` + ico + `"`); b == nil || string(b[1:4]) != "PNG" {
+	if b := readWindowsIcon(`"`+ico+`"`, 0); b == nil || string(b[1:4]) != "PNG" {
 		t.Errorf("ico did not decode: %v", b)
 	}
 	// A bad .ico yields nil.
 	bad := filepath.Join(dir, "bad.ico")
 	mustWrite(t, bad, []byte{0, 0, 9, 9})
-	if readWindowsIcon(bad) != nil {
+	if readWindowsIcon(bad, 0) != nil {
 		t.Error("bad ico should be nil")
 	}
 	// A valid PE (non-.ico extension routes to the PE path) decodes.
 	exe := filepath.Join(dir, "a.exe")
 	mustWrite(t, exe, buildPE(t, makeRsrc(0), ".rsrc"))
-	if b := readWindowsIcon(exe); b == nil || string(b[1:4]) != "PNG" {
+	if b := readWindowsIcon(exe, 0); b == nil || string(b[1:4]) != "PNG" {
 		t.Errorf("pe did not decode: %v", b)
 	}
 	// A non-PE, non-.ico file yields nil (PE path errors).
 	dll := filepath.Join(dir, "a.dll")
 	mustWrite(t, dll, []byte("not a pe"))
-	if readWindowsIcon(dll) != nil {
+	if readWindowsIcon(dll, 0) != nil {
 		t.Error("bad pe should be nil")
 	}
 	// %VAR% expansion resolves to the real path.
 	t.Setenv("ICONHOME", dir)
-	if b := readWindowsIcon(`%ICONHOME%\a.ico`); b == nil {
+	if b := readWindowsIcon(`%ICONHOME%\a.ico`, 0); b == nil {
 		t.Error("env-expanded icon should decode")
 	}
 }
