@@ -17,7 +17,7 @@ import (
 // section. It parses the PE with the stdlib debug/pe, walks the .rsrc resource
 // tree to the RT_GROUP_ICON directory (the icon's ICONDIR), gathers the matching
 // RT_ICON images, and stitches them back into a single in-memory .ico — which
-// icoBestPNG then decodes to a PNG. It is GOOS-agnostic (debug/pe reads bytes,
+// iconPNG then decodes to a PNG. It is GOOS-agnostic (debug/pe reads bytes,
 // no syscalls) so it compiles and is tested on every platform.
 
 const (
@@ -33,13 +33,14 @@ var (
 	errPEIconMiss = errors.New("peicon: RT_ICON member missing")
 )
 
-// peIconPNG extracts the module's group icon and returns it as PNG bytes.
-func peIconPNG(data []byte) ([]byte, error) {
+// peIconPNG extracts the module's group icon, decodes the representation best
+// matching targetPx, and returns it as PNG bytes (targetPx <= 0 = largest).
+func peIconPNG(data []byte, targetPx int) ([]byte, error) {
 	ico, err := peExtractICO(data)
 	if err != nil {
 		return nil, err
 	}
-	return icoBestPNG(ico)
+	return iconPNG(ico, targetPx)
 }
 
 // rsrc is the parsed .rsrc section: its raw bytes plus its virtual address, so

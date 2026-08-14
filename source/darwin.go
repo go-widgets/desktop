@@ -46,9 +46,10 @@ var _ shell.AppSource = (*Darwin)(nil)
 type DarwinOptions struct {
 	// Dir is the directory shown in the file grid (empty -> the user home).
 	Dir string
-	// IconSize is retained for parity with XDGOptions; the icns reader already
-	// picks the largest embedded representation, so it currently only documents
-	// intent.
+	// IconSize is the nominal pixel size the shell displays app icons at. It is
+	// passed to codec.DecodeBest, which selects the .icns representation best
+	// matching it (the smallest at least that large, else the largest). Zero
+	// selects the largest representation.
 	IconSize int
 	// appDirs overrides the scanned application directories (tests only).
 	appDirs []string
@@ -74,7 +75,7 @@ func NewDarwin(o DarwinOptions) *Darwin {
 		thumb: shell.NewThumbnailer(thumbnail.Normal),
 	}
 
-	bundles := scanBundles(o.appDirsOrDefault())
+	bundles := scanBundles(o.appDirsOrDefault(), o.IconSize)
 	entries := make([]*desktopentry.Entry, 0, len(bundles))
 	byCat := map[string][]*desktopentry.Entry{}
 	for _, b := range bundles {
@@ -117,7 +118,7 @@ func (o DarwinOptions) appDirsOrDefault() []string {
 // scanBundles enumerates the *.app bundles in each directory (in directory
 // order), reads and distils each bundle's Info.plist, and returns the collected
 // bundle infos. Unreadable directories are skipped.
-func scanBundles(dirs []string) []bundleInfo {
+func scanBundles(dirs []string, iconSize int) []bundleInfo {
 	var out []bundleInfo
 	for _, dir := range dirs {
 		ents, err := os.ReadDir(dir)
@@ -128,7 +129,7 @@ func scanBundles(dirs []string) []bundleInfo {
 			if !strings.HasSuffix(ent.Name(), ".app") {
 				continue
 			}
-			out = append(out, readBundle(filepath.Join(dir, ent.Name())))
+			out = append(out, readBundle(filepath.Join(dir, ent.Name()), iconSize))
 		}
 	}
 	return out
@@ -137,7 +138,7 @@ func scanBundles(dirs []string) []bundleInfo {
 // readBundle distils one .app bundle into a bundleInfo. A missing or malformed
 // Info.plist degrades to the bundle's base name with no id, icon or category; a
 // missing or non-PNG icon degrades to no icon.
-func readBundle(path string) bundleInfo {
+func readBundle(path string, iconSize int) bundleInfo {
 	b := bundleInfo{path: path, name: bundleBaseName(path), category: "Other"}
 	data, err := os.ReadFile(filepath.Join(path, "Contents", "Info.plist"))
 	if err != nil {
@@ -155,14 +156,15 @@ func readBundle(path string) bundleInfo {
 	b.id = plistString(info, "CFBundleIdentifier")
 	b.category = categoryFor(plistString(info, "LSApplicationCategoryType"))
 	b.iconKey = firstNonEmpty(b.id, path)
-	b.iconPNG = readIcon(path, plistString(info, "CFBundleIconFile"))
+	b.iconPNG = readIcon(path, plistString(info, "CFBundleIconFile"), iconSize)
 	return b
 }
 
 // readIcon loads the bundle's .icns icon (Contents/Resources/<iconFile>) and
-// extracts its best PNG representation. An empty icon name, an unreadable file
-// or an icns with no PNG variant yields nil (the app renders with a placeholder).
-func readIcon(bundlePath, iconFile string) []byte {
+// decodes the representation best matching iconSize to PNG bytes. An empty icon
+// name, an unreadable file or an icns with no decodable variant yields nil (the
+// app renders with a placeholder).
+func readIcon(bundlePath, iconFile string, iconSize int) []byte {
 	if iconFile == "" {
 		return nil
 	}
@@ -173,7 +175,7 @@ func readIcon(bundlePath, iconFile string) []byte {
 	if err != nil {
 		return nil
 	}
-	png, err := icnsBestPNG(data)
+	png, err := iconPNG(data, iconSize)
 	if err != nil {
 		return nil
 	}

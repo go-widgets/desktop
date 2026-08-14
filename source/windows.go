@@ -49,9 +49,10 @@ var _ shell.AppSource = (*Windows)(nil)
 type WindowsOptions struct {
 	// Dir is the directory shown in the file grid (empty -> the user profile).
 	Dir string
-	// IconSize is retained for parity with the other sources; the .ico/PE
-	// readers already pick the largest embedded representation, so it currently
-	// only documents intent.
+	// IconSize is the nominal pixel size the shell displays app icons at. It is
+	// passed to codec.DecodeBest, which selects the .ico/PE representation best
+	// matching it (the smallest at least that large, else the largest). Zero
+	// selects the largest representation.
 	IconSize int
 	// startDirs overrides the scanned Start Menu directories (tests only).
 	startDirs []string
@@ -78,7 +79,7 @@ func NewWindows(o WindowsOptions) *Windows {
 		thumb: shell.NewThumbnailer(thumbnail.Normal),
 	}
 
-	shortcuts := scanShortcuts(o.startDirsOrDefault())
+	shortcuts := scanShortcuts(o.startDirsOrDefault(), o.IconSize)
 	entries := make([]*desktopentry.Entry, 0, len(shortcuts))
 	byCat := map[string][]*desktopentry.Entry{}
 	for _, s := range shortcuts {
@@ -125,7 +126,7 @@ func (o WindowsOptions) startDirsOrDefault() []string {
 // every .lnk it finds, and returns the collected shortcuts. Unreadable roots and
 // unreadable subtrees are skipped; the category is the top-level subfolder under
 // the root ("Other" for a shortcut sitting directly in the root).
-func scanShortcuts(roots []string) []shortcut {
+func scanShortcuts(roots []string, iconSize int) []shortcut {
 	var out []shortcut
 	for _, root := range roots {
 		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
@@ -135,7 +136,7 @@ func scanShortcuts(roots []string) []shortcut {
 			if !strings.EqualFold(filepath.Ext(d.Name()), ".lnk") {
 				return nil
 			}
-			out = append(out, readShortcut(path, categoryOf(root, path)))
+			out = append(out, readShortcut(path, categoryOf(root, path), iconSize))
 			return nil
 		})
 	}
@@ -162,7 +163,7 @@ func categoryOf(root, path string) string {
 // that cannot be read or decoded degrades to no icon. iconKey is set only when
 // an icon actually decoded, so an icon-less app's Entry.Icon stays empty and
 // IconBytes misses cleanly instead of blitting the .lnk file's own bytes.
-func readShortcut(path, category string) shortcut {
+func readShortcut(path, category string, iconSize int) shortcut {
 	s := shortcut{path: path, name: shortcutName(path), category: category}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -174,18 +175,19 @@ func readShortcut(path, category string) shortcut {
 	}
 	s.target = sl.target
 	s.args = sl.arguments
-	if png := readWindowsIcon(firstNonEmpty(sl.iconLocation, sl.target)); png != nil {
+	if png := readWindowsIcon(firstNonEmpty(sl.iconLocation, sl.target), iconSize); png != nil {
 		s.iconKey = firstNonEmpty(sl.target, path)
 		s.iconPNG = png
 	}
 	return s
 }
 
-// readWindowsIcon loads and decodes a shortcut's icon to PNG bytes. The location
-// may be an .ico file or an .exe/.dll whose resource section carries the icon;
-// %VAR% environment references are expanded first. Anything unreadable or
-// undecodable yields nil (the app renders with a placeholder).
-func readWindowsIcon(loc string) []byte {
+// readWindowsIcon loads and decodes a shortcut's icon to PNG bytes, selecting
+// the representation best matching iconSize. The location may be an .ico file or
+// an .exe/.dll whose resource section carries the icon; %VAR% environment
+// references are expanded first. Anything unreadable or undecodable yields nil
+// (the app renders with a placeholder).
+func readWindowsIcon(loc string, iconSize int) []byte {
 	loc = strings.Trim(loc, `"`)
 	if loc == "" {
 		return nil
@@ -197,9 +199,9 @@ func readWindowsIcon(loc string) []byte {
 	}
 	var png []byte
 	if strings.EqualFold(filepath.Ext(loc), ".ico") {
-		png, err = icoBestPNG(data)
+		png, err = iconPNG(data, iconSize)
 	} else {
-		png, err = peIconPNG(data)
+		png, err = peIconPNG(data, iconSize)
 	}
 	if err != nil {
 		return nil

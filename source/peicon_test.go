@@ -122,7 +122,7 @@ func buildPE(t *testing.T, rsrc []byte, sectionName string) []byte {
 
 func TestPEIconPNGEndToEnd(t *testing.T) {
 	pe := buildPE(t, makeRsrc(0), ".rsrc")
-	out, err := peIconPNG(pe)
+	out, err := peIconPNG(pe, 0)
 	if err != nil {
 		t.Fatalf("peIconPNG: %v", err)
 	}
@@ -133,19 +133,19 @@ func TestPEIconPNGEndToEnd(t *testing.T) {
 
 func TestPEIconPNGErrors(t *testing.T) {
 	t.Run("not a PE", func(t *testing.T) {
-		if _, err := peIconPNG([]byte("not a pe at all")); err != errPEParse {
+		if _, err := peIconPNG([]byte("not a pe at all"), 0); err != errPEParse {
 			t.Fatalf("err = %v", err)
 		}
 	})
 	t.Run("no rsrc section", func(t *testing.T) {
 		pe := buildPE(t, makeRsrc(0), ".text")
-		if _, err := peIconPNG(pe); err != errPENoRsrc {
+		if _, err := peIconPNG(pe, 0); err != errPENoRsrc {
 			t.Fatalf("err = %v", err)
 		}
 	})
 	t.Run("missing RT_ICON member", func(t *testing.T) {
 		pe := buildPE(t, makeRsrc(99), ".rsrc") // group points at id 99
-		if _, err := peIconPNG(pe); err != errPEIconMiss {
+		if _, err := peIconPNG(pe, 0); err != errPEIconMiss {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -154,7 +154,7 @@ func TestPEIconPNGErrors(t *testing.T) {
 		blob := make([]byte, 24)
 		putDir(blob, 0, [][2]uint32{{rtIcon, 0x20 | 0x80000000}})
 		pe := buildPE(t, blob, ".rsrc")
-		if _, err := peIconPNG(pe); err != errPENoGroup {
+		if _, err := peIconPNG(pe, 0); err != errPENoGroup {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -164,7 +164,7 @@ func TestPEIconPNGErrors(t *testing.T) {
 		blob := make([]byte, 24)
 		putDir(blob, 0, [][2]uint32{{rtGroupIcon, 0x1000 | 0x80000000}})
 		pe := buildPE(t, blob, ".rsrc")
-		if _, err := peIconPNG(pe); err != errPERsrcBad {
+		if _, err := peIconPNG(pe, 0); err != errPERsrcBad {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -173,7 +173,7 @@ func TestPEIconPNGErrors(t *testing.T) {
 		pe := buildPE(t, makeRsrc(0), ".rsrc")
 		const sec = 0x40 + 4 + 20 + 224
 		binary.LittleEndian.PutUint32(pe[sec+16:], 0xFFFFFF) // SizeOfRawData
-		if _, err := peIconPNG(pe); err != errPENoRsrc {
+		if _, err := peIconPNG(pe, 0); err != errPENoRsrc {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -318,7 +318,7 @@ func TestRsrcAssembleICORoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := icoBestPNG(ico); err != nil {
+	if _, err := iconPNG(ico, 0); err != nil {
 		t.Fatalf("assembled ICO undecodable: %v", err)
 	}
 	if !bytes.HasPrefix(ico, []byte{0, 0, 1, 0}) {
