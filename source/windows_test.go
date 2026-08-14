@@ -259,11 +259,11 @@ func TestExpandWinEnv(t *testing.T) {
 	t.Setenv("FOO", "X")
 	t.Setenv("BAR", "Y")
 	cases := map[string]string{
-		"plain":        "plain",      // no percent
-		"50% done":     "50% done",   // single unmatched percent
-		"%FOO%bar":     "Xbar",       // one variable
-		"a%FOO%b%BAR%c": "aXbYc",     // chained
-		"%MISSING%z":   "z",          // undefined -> empty
+		"plain":         "plain",    // no percent
+		"50% done":      "50% done", // single unmatched percent
+		"%FOO%bar":      "Xbar",     // one variable
+		"a%FOO%b%BAR%c": "aXbYc",    // chained
+		"%MISSING%z":    "z",        // undefined -> empty
 	}
 	for in, want := range cases {
 		if got := expandWinEnv(in); got != want {

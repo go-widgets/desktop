@@ -14,21 +14,21 @@ import (
 // clearly. Every directory is 16-byte header + 8-byte entries; leaves are
 // 16-byte IMAGE_RESOURCE_DATA_ENTRY records.
 const (
-	offRoot          = 0x00
-	offIconType      = 0x20
-	offIconName      = 0x38
-	offIconData      = 0x50
-	offGroupType     = 0x60
-	offGroupName     = 0x78
-	offGroupData     = 0x90
-	offImages        = 0xA0
-	rsrcVA           = 0x1000
-	langID           = 0x0409
-	memberID         = 1 // the RT_ICON id the group references
+	offRoot      = 0x00
+	offIconType  = 0x20
+	offIconName  = 0x38
+	offIconData  = 0x50
+	offGroupType = 0x60
+	offGroupName = 0x78
+	offGroupData = 0x90
+	offImages    = 0xA0
+	rsrcVA       = 0x1000
+	langID       = 0x0409
+	memberID     = 1 // the RT_ICON id the group references
 )
 
 func putDir(b []byte, off int, entries [][2]uint32) {
-	binary.LittleEndian.PutUint16(b[off+12:], 0)                 // named count
+	binary.LittleEndian.PutUint16(b[off+12:], 0)                    // named count
 	binary.LittleEndian.PutUint16(b[off+14:], uint16(len(entries))) // id count
 	for i, e := range entries {
 		o := off + 16 + i*8
@@ -55,11 +55,11 @@ func makeRsrc(memberOverride uint32) []byte {
 	}
 	// GRPICONDIR + one GRPICONDIRENTRY.
 	grp := make([]byte, 6+14)
-	binary.LittleEndian.PutUint16(grp[2:], 1) // type icon
-	binary.LittleEndian.PutUint16(grp[4:], 1) // count
-	grp[6], grp[7] = 8, 8                      // width, height
-	binary.LittleEndian.PutUint16(grp[10:], 1)             // planes
-	binary.LittleEndian.PutUint16(grp[12:], 32)            // bit count
+	binary.LittleEndian.PutUint16(grp[2:], 1)   // type icon
+	binary.LittleEndian.PutUint16(grp[4:], 1)   // count
+	grp[6], grp[7] = 8, 8                       // width, height
+	binary.LittleEndian.PutUint16(grp[10:], 1)  // planes
+	binary.LittleEndian.PutUint16(grp[12:], 32) // bit count
 	binary.LittleEndian.PutUint32(grp[14:], uint32(len(icon)))
 	binary.LittleEndian.PutUint16(grp[18:], uint16(nID))
 
@@ -95,14 +95,14 @@ func buildPE(t *testing.T, rsrc []byte, sectionName string) []byte {
 	copy(buf[peOff:], "PE\x00\x00")
 
 	coff := peOff + 4
-	binary.LittleEndian.PutUint16(buf[coff:], 0x8664)          // Machine amd64
-	binary.LittleEndian.PutUint16(buf[coff+2:], 1)             // NumberOfSections
-	binary.LittleEndian.PutUint16(buf[coff+16:], optSize)      // SizeOfOptionalHeader
-	binary.LittleEndian.PutUint16(buf[coff+18:], 0x0102)       // Characteristics
+	binary.LittleEndian.PutUint16(buf[coff:], 0x8664)     // Machine amd64
+	binary.LittleEndian.PutUint16(buf[coff+2:], 1)        // NumberOfSections
+	binary.LittleEndian.PutUint16(buf[coff+16:], optSize) // SizeOfOptionalHeader
+	binary.LittleEndian.PutUint16(buf[coff+18:], 0x0102)  // Characteristics
 
 	opt := coff + 20
-	binary.LittleEndian.PutUint16(buf[opt:], 0x10b)            // PE32 magic
-	binary.LittleEndian.PutUint32(buf[opt+92:], 16)           // NumberOfRvaAndSizes
+	binary.LittleEndian.PutUint16(buf[opt:], 0x10b) // PE32 magic
+	binary.LittleEndian.PutUint32(buf[opt+92:], 16) // NumberOfRvaAndSizes
 	// Resource data directory (index 2) — informational; the code uses the
 	// section directly.
 	binary.LittleEndian.PutUint32(buf[opt+96+2*8:], rsrcVA)
@@ -111,10 +111,10 @@ func buildPE(t *testing.T, rsrc []byte, sectionName string) []byte {
 	sec := opt + optSize
 	copy(buf[sec:], sectionName)
 	binary.LittleEndian.PutUint32(buf[sec+8:], uint32(len(rsrc)))  // VirtualSize
-	binary.LittleEndian.PutUint32(buf[sec+12:], rsrcVA)           // VirtualAddress
+	binary.LittleEndian.PutUint32(buf[sec+12:], rsrcVA)            // VirtualAddress
 	binary.LittleEndian.PutUint32(buf[sec+16:], uint32(len(rsrc))) // SizeOfRawData
-	binary.LittleEndian.PutUint32(buf[sec+20:], rawStart)         // PointerToRawData
-	binary.LittleEndian.PutUint32(buf[sec+36:], 0x40000040)       // Characteristics
+	binary.LittleEndian.PutUint32(buf[sec+20:], rawStart)          // PointerToRawData
+	binary.LittleEndian.PutUint32(buf[sec+36:], 0x40000040)        // Characteristics
 
 	copy(buf[rawStart:], rsrc)
 	return buf

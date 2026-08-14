@@ -23,12 +23,12 @@ import (
 // (windows.go) layered on top.
 
 var (
-	errLNKShort   = errors.New("lnk: too short for header")
-	errLNKMagic   = errors.New("lnk: bad ShellLinkHeader size")
-	errLNKCLSID   = errors.New("lnk: bad LinkCLSID")
-	errLNKIDList  = errors.New("lnk: truncated LinkTargetIDList")
-	errLNKInfo    = errors.New("lnk: truncated LinkInfo")
-	errLNKString  = errors.New("lnk: truncated StringData")
+	errLNKShort    = errors.New("lnk: too short for header")
+	errLNKMagic    = errors.New("lnk: bad ShellLinkHeader size")
+	errLNKCLSID    = errors.New("lnk: bad LinkCLSID")
+	errLNKIDList   = errors.New("lnk: truncated LinkTargetIDList")
+	errLNKInfo     = errors.New("lnk: truncated LinkInfo")
+	errLNKString   = errors.New("lnk: truncated StringData")
 	errLNKNoTarget = errors.New("lnk: no target path")
 )
 
@@ -57,8 +57,8 @@ const (
 	flagHasIconLocation     = 1 << 6
 	flagIsUnicode           = 1 << 7
 
-	linkInfoHasVolumeID     = 1 << 0
-	linkInfoHasNetworkRel   = 1 << 1
+	linkInfoHasVolumeID   = 1 << 0
+	linkInfoHasNetworkRel = 1 << 1
 )
 
 var lnkCLSID = [16]byte{
