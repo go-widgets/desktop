@@ -1,0 +1,26 @@
+go-widgets/desktop — the shell on the Win11 ARM64 QEMU VM (windows/arm64,
+CGO=0), 2026-08-10.
+
+The full desktop shell opens a real Win32 window through window.Open and
+populates itself from the machine it is running on: 41 apps in 6 categories from
+the real Start Menu, a 12-entry dock, and 39 files listed from the user profile.
+The launcher column lists actual Windows entries — Administrative Tools, Command
+Prompt, Control Panel, Event Viewer, File Explorer, Microsoft Edge, Registry
+Editor, Remote Desktop Connection — none of which the shell could invent.
+
+  windows-shell-2026-08-10.png        the shell as it opens.
+
+  windows-shell-input-2026-08-10.png  after one mouse round-trip: a click
+                                      dispatched through the Win32 backend
+                                      highlights the launcher row it landed on
+                                      (Command Prompt), and the repaint is
+                                      confined to the launcher panel.
+
+Both PNGs are the window — frame and title bar included — cropped out of the
+800x600 QEMU screendump at (8,1). The desktop around the window (wallpaper,
+taskbar, clock) is not evidence of anything, so it is not committed. The pixels
+inside the window are untouched.
+
+The files listed in the right-hand pane are the stock Windows profile folders of
+a throwaway test VM (AppData, Contacts, Desktop, Documents, Downloads, …), which
+is what the shell is meant to be seen listing.
