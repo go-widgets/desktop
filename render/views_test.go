@@ -145,7 +145,7 @@ func TestListViewEvents(t *testing.T) {
 		t.Errorf("sortFn col=%d", sorted)
 	}
 	lv.SetSort(1, false)
-	if lv.table.SortColumn != 1 || lv.table.SortAsc {
+	if lv.table.SortColumn().Get() != 1 || lv.table.SortAsc().Get() {
 		t.Error("SetSort not applied")
 	}
 	if _, ok := lv.rowIconFunc(99); ok {
@@ -157,12 +157,12 @@ func TestListViewEvents(t *testing.T) {
 	// Click a row to select, then click the same row to open it.
 	rowY := firstTableRowY(lv, 0)
 	lv.OnEvent(toolkit.Event{Kind: toolkit.EventClick, X: 20, Y: rowY})
-	prev := lv.table.Selected
+	prev := lv.table.Selected().Get()
 	lv.OnEvent(toolkit.Event{Kind: toolkit.EventClick, X: 20, Y: rowY})
 	if prev >= 0 && opened == "" {
 		t.Error("reselect click did not open a row")
 	}
-	lv.table.Selected = 0
+	lv.table.Selected().Set(0)
 	if lv.DragData() != "/d" {
 		t.Errorf("listView DragData=%q", lv.DragData())
 	}

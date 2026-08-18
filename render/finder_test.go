@@ -137,7 +137,7 @@ func TestFinderIconSizeSlider(t *testing.T) {
 		t.Errorf("max clamp = %d", f.IconSize())
 	}
 	// Slider OnChange drives SetIconSize.
-	f.slider.OnChange(72)
+	f.slider.Value().Set(72)
 	if f.IconSize() != 72 {
 		t.Errorf("slider OnChange size = %d", f.IconSize())
 	}
@@ -156,7 +156,7 @@ func TestFinderSort(t *testing.T) {
 		t.Error("directories should sort first")
 	}
 	// The switcher's OnChange path.
-	f.switcher.OnChange(ViewList)
+	f.switcher.Current().Set(ViewList)
 	drawFinder(f)
 }
 

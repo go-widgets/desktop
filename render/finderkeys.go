@@ -208,7 +208,7 @@ func (f *FinderPane) selectPath(path string) {
 	}
 	switch f.viewMode.Get() {
 	case ViewList:
-		f.listView.table.Selected = idx
+		f.listView.table.Selected().Set(idx)
 	case ViewIcons:
 		// The grid validates a selection against its cell count, which is filled
 		// from the model at Draw time; sync it first so a programmatic select
@@ -231,7 +231,7 @@ func (f *FinderPane) selectedItem() (shell.FileItem, bool) {
 	idx := -1
 	switch f.viewMode.Get() {
 	case ViewList:
-		idx = f.listView.table.Selected
+		idx = f.listView.table.Selected().Get()
 	case ViewIcons:
 		idx = f.iconView.grid.Selected()
 	case ViewGallery:
