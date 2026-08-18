@@ -374,7 +374,7 @@ func (s *Scene) ShowToast(t *toolkit.Toast) {
 	if t == nil {
 		return
 	}
-	t.Visible = true
+	t.Visible().Set(true)
 	s.toasts = append(s.toasts, t)
 	s.toastsChanged()
 }

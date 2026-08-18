@@ -64,8 +64,8 @@ func newListView(model *mvvm.ObservableList[shell.FileItem], th *toolkit.Theme,
 		rowIcon: toolkit.NewImageFit(nil, 0, 0),
 	}
 	lv.table = toolkit.NewTable(listColumns(), nil)
-	lv.table.SortColumn = 0
-	lv.table.SortAsc = true
+	lv.table.SortColumn().Set(0)
+	lv.table.SortAsc().Set(true)
 	lv.table.RowIcon = lv.rowIconFunc
 	lv.table.OnSort = func(col int, asc bool) {
 		if lv.sortFn != nil {
@@ -89,8 +89,8 @@ func (lv *listView) Refresh() {
 
 // SetSort mirrors the finder's sort state onto the table header indicator.
 func (lv *listView) SetSort(col int, asc bool) {
-	lv.table.SortColumn = col
-	lv.table.SortAsc = asc
+	lv.table.SortColumn().Set(col)
+	lv.table.SortAsc().Set(asc)
 }
 
 // rowIconFunc supplies the table's per-row leading type icon.
@@ -136,7 +136,7 @@ func (lv *listView) OnEvent(ev toolkit.Event) {
 		return
 	}
 	if ev.Kind == toolkit.EventClick {
-		prev := lv.table.Selected
+		prev := lv.table.Selected().Get()
 		row := lv.table.RowAt(ev.X, ev.Y)
 		lv.table.OnEvent(ev)
 		if row >= 0 && row == prev && row < lv.model.Len() && lv.openFn != nil {
@@ -168,7 +168,7 @@ func (lv *listView) handleFileDrop(ev toolkit.Event) {
 // selected row carries that file's path, so the host shows a real file drag and
 // can route a drop back to the finder as a move.
 func (lv *listView) DragData() string {
-	row := lv.table.Selected
+	row := lv.table.Selected().Get()
 	if row < 0 || row >= lv.model.Len() {
 		return ""
 	}

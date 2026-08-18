@@ -171,9 +171,9 @@ func (f *FinderPane) build() {
 	f.titleLabel = toolkit.NewLabel("")
 	f.titleLabel.VAlign = toolkit.VMiddle
 	f.switcher = toolkit.NewViewSwitcher([]string{"Liste", "Vignettes", "Colonnes", "Galerie"}, ViewIcons)
-	f.switcher.OnChange = f.SetView
+	f.switcher.Current().Subscribe(func(mode int) { f.SetView(mode) })
 	f.slider = toolkit.NewScale(iconSizeMin, iconSizeMax, f.iconSize.Get())
-	f.slider.OnChange = func(v float64) { f.SetIconSize(int(v)) }
+	f.slider.Value().Subscribe(func(v float64) { f.SetIconSize(int(v)) })
 
 	f.toolbar = toolkit.NewHBox()
 	f.toolbar.AddFlex(f.padded(f.titleLabel), 1)
@@ -252,7 +252,7 @@ func (f *FinderPane) SetView(mode int) {
 		return
 	}
 	f.viewMode.Set(mode)
-	f.switcher.Current = mode
+	f.switcher.Current().Set(mode)
 	f.content.Visible = pageName(mode)
 	if mode == ViewColumns && f.columnView.ColumnCount() == 0 {
 		if p := f.cwd.Get(); p != "" {
