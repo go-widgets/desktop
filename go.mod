@@ -8,7 +8,7 @@ require (
 	github.com/go-freedesktop/menu v0.1.0
 	github.com/go-freedesktop/mime v0.1.0
 	github.com/go-freedesktop/mimeapps v0.1.0
-	github.com/go-freedesktop/notifications v0.4.0
+	github.com/go-freedesktop/notifications v0.5.0
 	github.com/go-gfx/gfx v0.6.0
 	github.com/go-opentype/fonts v0.6.0
 	github.com/go-thumbnail/thumbnail v0.1.0

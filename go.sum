@@ -16,8 +16,8 @@ github.com/go-freedesktop/mime v0.1.0 h1:EpiwlodU55JWTV8c5CNrYdg9N8olStIlmQDajvJ
 github.com/go-freedesktop/mime v0.1.0/go.mod h1:3F/17bNSvfxWaT1r4D3OIDLa1+cKmtVWWYpHqmDdu0c=
 github.com/go-freedesktop/mimeapps v0.1.0 h1:fxO5TWoCX9+y6LoWTJJAjwQhKnW5mVpUbuwFPUxpmog=
 github.com/go-freedesktop/mimeapps v0.1.0/go.mod h1:NL79LtvECmRHf1kDr/a+Sd8d4Jg/7g1dERuPIKOsHDQ=
-github.com/go-freedesktop/notifications v0.4.0 h1:aneAbrsmBSj311wqG84V6yrfUdHx2dGgI1qc10bD8HE=
-github.com/go-freedesktop/notifications v0.4.0/go.mod h1:9rb/jG1jST5m9hR0iv9/1ZQetzZXflyIDGIz91VBjJo=
+github.com/go-freedesktop/notifications v0.5.0 h1:AGHI0eyZRKFKlLVSIGmVjRPV9APR8aYSfQhCNjTAZbA=
+github.com/go-freedesktop/notifications v0.5.0/go.mod h1:WOo5w2Aa34+F+7FN6tWusc8Mh61y/YCKt4NsVJWGtjQ=
 github.com/go-gfx/gfx v0.6.0 h1:sQkGEmB9YLouHxrscwvS4OW6oELsTtrKtQqsNdJ8L8Q=
 github.com/go-gfx/gfx v0.6.0/go.mod h1:bFt/MWyYWRU3Ic9IaB8XOC9KLMMHRRmahMk4FaIGK7g=
 github.com/go-iconoir/iconoir v0.2.0 h1:2ANqG6gkvHMoCtpNgNhSeOsuGMnlWQ+Sl43EndujIC0=
