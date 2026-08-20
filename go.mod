@@ -14,7 +14,7 @@ require (
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.8.0
 	github.com/go-widgets/painter v0.11.0
-	github.com/go-widgets/toolkit v0.223.0
+	github.com/go-widgets/toolkit v0.224.0
 	github.com/go-widgets/window v0.20.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/sergeymakinen/go-ico v1.0.0
@@ -27,7 +27,7 @@ require (
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/ebitengine/purego v0.10.2 // indirect
 	github.com/go-crdt/collab v0.18.0 // indirect
-	github.com/go-crdt/crdt v0.22.0 // indirect
+	github.com/go-crdt/crdt v0.25.0 // indirect
 	github.com/go-iconoir/iconoir v0.2.0 // indirect
 	github.com/go-images/images v0.0.0-20260811115337-bc5d586f8e38 // indirect
 	github.com/go-macos/objc v0.1.1 // indirect
