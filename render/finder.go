@@ -309,7 +309,7 @@ func (f *FinderPane) showNetwork() {
 	f.fileModel.Clear()
 	f.emptyMsg = "Aucun partage"
 	f.cwd.Set("")
-	f.titleLabel.Text = "Réseau"
+	f.titleLabel.Text().Set("Réseau")
 	f.sidebar.SetActive("")
 	f.listView.Refresh()
 	f.columnView.SetRoot("")
@@ -323,7 +323,7 @@ func (f *FinderPane) Navigate(path string) {
 		f.fileModel.Clear()
 		f.emptyMsg = "Dossier indisponible"
 		f.cwd.Set(path)
-		f.titleLabel.Text = titleFor(path)
+		f.titleLabel.Text().Set(titleFor(path))
 		f.sidebar.SetActive(path)
 		f.listView.Refresh()
 		f.relayout()
@@ -343,7 +343,7 @@ func (f *FinderPane) setDir(dir *shell.Dir) {
 	f.fileModel.Append(items...)
 	f.emptyMsg = "Dossier vide"
 	f.cwd.Set(dir.Path)
-	f.titleLabel.Text = titleFor(dir.Path)
+	f.titleLabel.Text().Set(titleFor(dir.Path))
 	f.sidebar.SetActive(dir.Path)
 	f.iconView.clearSelection()
 	f.galleryView.clearSelection()
