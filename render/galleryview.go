@@ -70,7 +70,7 @@ func (v *galleryView) activate(index int) {
 func (v *galleryView) clearSelection() { v.gv.SetSelected(-1) }
 
 // Selected is the current gallery selection index (-1 when nothing is selected).
-func (v *galleryView) Selected() int { return v.gv.Selected() }
+func (v *galleryView) Selected() int { return v.gv.Selected().Get() }
 
 // SetSelected drives the gallery selection programmatically (the paste-select /
 // keyboard-shortcut peer of clicking a thumbnail).
@@ -96,7 +96,7 @@ func (v *galleryView) syncItems() {
 			v.gv.Empty = m
 		}
 	}
-	if v.gv.Selected() < 0 && len(items) > 0 {
+	if v.gv.Selected().Get() < 0 && len(items) > 0 {
 		v.gv.SetSelected(0)
 	}
 }
@@ -149,7 +149,7 @@ func (v *galleryView) handleFileDrop(ev toolkit.Event) {
 // drag and can route a drop back to the finder as a move.
 func (v *galleryView) DragData() string {
 	v.syncItems()
-	idx := v.gv.Selected()
+	idx := v.gv.Selected().Get()
 	if idx < 0 || idx >= v.model.Len() {
 		return ""
 	}

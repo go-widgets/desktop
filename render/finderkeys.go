@@ -233,7 +233,7 @@ func (f *FinderPane) selectedItem() (shell.FileItem, bool) {
 	case ViewList:
 		idx = f.listView.table.Selected().Get()
 	case ViewIcons:
-		idx = f.iconView.grid.Selected()
+		idx = f.iconView.grid.Selected().Get()
 	case ViewGallery:
 		idx = f.galleryView.Selected()
 	}
