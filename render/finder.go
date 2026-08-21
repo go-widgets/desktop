@@ -198,7 +198,7 @@ func (f *FinderPane) build() {
 	f.content.AddPage("icones", f.iconView)
 	f.content.AddPage("colonnes", f.columnView)
 	f.content.AddPage("galerie", f.galleryView)
-	f.content.Visible = pageName(f.viewMode.Get())
+	f.content.Visible().Set(pageName(f.viewMode.Get()))
 
 	// Root border.
 	f.root = toolkit.NewBorder()
@@ -253,7 +253,7 @@ func (f *FinderPane) SetView(mode int) {
 	}
 	f.viewMode.Set(mode)
 	f.switcher.Current().Set(mode)
-	f.content.Visible = pageName(mode)
+	f.content.Visible().Set(pageName(mode))
 	if mode == ViewColumns && f.columnView.ColumnCount() == 0 {
 		if p := f.cwd.Get(); p != "" {
 			f.columnView.SetRoot(p)
