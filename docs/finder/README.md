@@ -22,6 +22,21 @@ toolbar, and the active view.
 | `2026-08-11-finder-galerie.png` | **Galerie** (`toolkit.GalleryView`) — a large preview of the selected item filling the top region (a real go-thumbnail photo, its filename in the caption band), and a horizontally-scrolling filmstrip below with real thumbnails (folder / document glyphs otherwise); the selected thumbnail carries the accent ring. Same thumbnail path as Vignettes. |
 | `2026-08-11-finder-move-confirm.png` | **Drag-to-move confirmation** — a file dropped on a folder pops the modal « Déplacer «…» vers «…» ? » dialog (Annuler / Déplacer) over a dimmed pane. The real filesystem is mutated only after **Déplacer**. |
 
+## Icons & chrome from real widgets (2026-08-24, toolkit v0.241.0)
+
+_Horodate: 2026-08-24 13:47 CEST._ The render layer no longer hand-rasterises any
+icon or chrome. The sidebar place glyphs and the file-grid fallbacks now resolve
+to **real icons** — a themed system icon via `go-freedesktop/icontheme`
+(user-home, folder-download, user-trash…) where one is installed, else the
+matching **go-iconoir** glyph — and the empty state and modal scrim are composed
+toolkit widgets.
+
+| Capture | What it shows |
+| --- | --- |
+| `2026-08-24-finder-iconoir-place-glyphs.png` | The Favoris/Emplacements sidebar with its place glyphs drawn from **go-iconoir** (`home`, `computer`, `page`, `app-window`, `media-image`, `movie`, `music-note`, `download`, `hard-drive`, `network`, `trash`) — no host icon theme is installed, so every row falls back to iconoir. On a Linux host with an icon theme the same rows show the theme's own place icons. |
+| `2026-08-24-finder-backdrop-scrim.png` | The move-confirmation dialog over a **`toolkit.Backdrop`** modal scrim (the dimmed pane behind it) instead of a raw `FillRect`. |
+| `2026-08-24-finder-emptystate-widget.png` | The **`toolkit.EmptyState`** widget centring the empty-directory message in the Liste view (here the Réseau place's "Aucun partage"). |
+
 All captures are rendered from **synthetic content only** — the embedded
 (browser) app source for the launcher + dock, and either the embedded virtual
 directory or a throwaway fixture directory of fake folders and generated

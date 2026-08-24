@@ -93,6 +93,11 @@ type Scene struct {
 	launcherIcons    *IconLoader
 	launcherAppGlyph *toolkit.Image
 
+	// launcherLabel is the reusable Label the launcher's per-row renderer draws
+	// the app name through — a composed toolkit.Label (RoleText) rather than a
+	// bare DrawText call. Its Text / Ink / Bounds are set per row before Draw.
+	launcherLabel *toolkit.Label
+
 	// thumbKey maps a file item to its thumbnail's icon-loader key ("" for
 	// none). It is the source's ThumbKey when a Source was supplied, otherwise
 	// a Thumbnailer-backed native policy (an existing on-disk cache path).
@@ -173,6 +178,8 @@ func (s *Scene) build() {
 	// fallback tile. See the field docs.
 	s.launcherIcons = s.cfg.Icons.Fork()
 	s.launcherAppGlyph = appTileIcon(DefaultIconSize, s.theme)
+	s.launcherLabel = toolkit.NewLabel("")
+	s.launcherLabel.VAlign = toolkit.VMiddle
 
 	s.menubar = toolkit.NewMenuBar()
 	s.menubar.AddMenu("Applications", s.appMenu())
@@ -257,9 +264,14 @@ func (s *Scene) drawLauncherRow(p painter.Painter, th *toolkit.Theme, rc toolkit
 	img.SetBounds(toolkit.Rect{X: rc.X + launcherPad, Y: iy, W: launcherIconPx, H: launcherIconPx})
 	img.Draw(p, th)
 
+	// The label is a composed toolkit.Label (RoleText), reused per row: its Ink
+	// tracks the ListBox's resolved row colour (theme.OnSurface, or theme.Background
+	// on the selected row) so it follows selection, exactly as the bare DrawText did.
 	tx := rc.X + launcherPad + launcherIconPx + launcherPad
-	ty := rc.Y + (rc.H-toolkit.GlyphHeight())/2
-	toolkit.DrawText(p, tx, ty, item, ink)
+	s.launcherLabel.Text().Set(item)
+	s.launcherLabel.Ink = ink
+	s.launcherLabel.SetBounds(toolkit.Rect{X: tx, Y: rc.Y, W: rc.X + rc.W - tx, H: rc.H})
+	s.launcherLabel.Draw(p, th)
 }
 
 // launcherIcon resolves the launcher row at index to its app's real icon,

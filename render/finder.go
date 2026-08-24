@@ -156,10 +156,10 @@ func NativeLister(path string) (*shell.Dir, error) {
 
 // build lays out the widget tree and wires the interactions.
 func (f *FinderPane) build() {
-	f.folderGlyph = folderIcon(DefaultIconSize)
-	f.fileGlyph = fileIcon(DefaultIconSize)
-	f.pictureGlyph = pictureIcon(DefaultIconSize)
-	f.placeGlyphs = buildPlaceGlyphs(sbIconPx, placeGlyphInk(f.theme))
+	f.folderGlyph = folderIcon(DefaultIconSize, f.theme)
+	f.fileGlyph = fileIcon(DefaultIconSize, f.theme)
+	f.pictureGlyph = pictureIcon(DefaultIconSize, f.theme)
+	f.placeGlyphs = buildPlaceGlyphs(f.cfg.Icons, sbIconPx, placeGlyphInk(f.theme))
 
 	// Sidebar. A file dropped on a directory row requests a move into it.
 	f.sidebar = newSidebar(f.theme, f.placeGlyphs, f.cfg.Places, f.navigatePlace)
@@ -485,7 +485,7 @@ const (
 )
 
 // finderScrim dims the pane behind the modal dialog (a ~40% black wash the pixel
-// painter src-over composites).
+// painter src-over composites). It is the Fill of the modal Backdrop scrim.
 var finderScrim = toolkit.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x66}
 
 // finderRoot wraps the Finder's Border with a modal-dialog overlay. Normally it
@@ -495,6 +495,13 @@ var finderScrim = toolkit.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x66}
 type finderRoot struct {
 	toolkit.Base
 	f *FinderPane
+
+	// scrim is the modal wash composited behind the dialog — a toolkit.Backdrop
+	// (Interactive, so it semantically swallows clicks aimed at the content
+	// beneath) rather than a hand-drawn FillRect. finderRoot.OnEvent already
+	// routes every event to the dialog while it is up, so the scrim's job is
+	// purely the dim.
+	scrim *toolkit.Backdrop
 }
 
 // SetBounds records the overlay bounds, forwards them to the border and
@@ -506,11 +513,16 @@ func (w *finderRoot) SetBounds(r toolkit.Rect) {
 }
 
 // Draw paints the border, then (when a dialog is up) the dim scrim and the
-// dialog on top.
+// dialog on top. The scrim is a toolkit.Backdrop, so the modal wash composes as a
+// widget rather than a raw FillRect.
 func (w *finderRoot) Draw(p painter.Painter, th *toolkit.Theme) {
 	w.f.root.Draw(p, th)
 	if w.f.dialog != nil {
-		p.FillRect(w.Bounds(), finderScrim)
+		if w.scrim == nil {
+			w.scrim = &toolkit.Backdrop{Fill: finderScrim, Interactive: true}
+		}
+		w.scrim.SetBounds(w.Bounds())
+		w.scrim.Draw(p, th)
 		w.f.dialog.Draw(p, th)
 	}
 }

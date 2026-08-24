@@ -302,7 +302,7 @@ func sidebarPlaces() *shell.Places {
 
 func TestSidebarNavigateAndActive(t *testing.T) {
 	th := toolkit.DefaultDark()
-	glyphs := buildPlaceGlyphs(sbIconPx, placeGlyphInk(th))
+	glyphs := buildPlaceGlyphs(nil, sbIconPx, placeGlyphInk(th))
 	navd := ""
 	sb := newSidebar(th, glyphs, sidebarPlaces(), func(p shell.Place) { navd = p.Path })
 	sb.SetBounds(toolkit.Rect{X: 0, Y: 0, W: 200, H: 400})
@@ -341,7 +341,7 @@ func TestSidebarNavigateAndActive(t *testing.T) {
 
 func TestSidebarReorderMirror(t *testing.T) {
 	th := toolkit.DefaultDark()
-	glyphs := buildPlaceGlyphs(sbIconPx, placeGlyphInk(th))
+	glyphs := buildPlaceGlyphs(nil, sbIconPx, placeGlyphInk(th))
 	sb := newSidebar(th, glyphs, sidebarPlaces(), nil)
 	sb.SetBounds(toolkit.Rect{X: 0, Y: 0, W: 200, H: 400})
 
@@ -365,7 +365,7 @@ func TestSidebarReorderMirror(t *testing.T) {
 
 func TestSidebarFileDrop(t *testing.T) {
 	th := toolkit.DefaultDark()
-	glyphs := buildPlaceGlyphs(sbIconPx, placeGlyphInk(th))
+	glyphs := buildPlaceGlyphs(nil, sbIconPx, placeGlyphInk(th))
 	var gotDest shell.Place
 	var gotSrc string
 	sb := newSidebar(th, glyphs, sidebarPlaces(), nil)
@@ -410,7 +410,7 @@ func TestSidebarFileDrop(t *testing.T) {
 
 func TestSidebarDragAndAccepts(t *testing.T) {
 	th := toolkit.DefaultDark()
-	glyphs := buildPlaceGlyphs(sbIconPx, placeGlyphInk(th))
+	glyphs := buildPlaceGlyphs(nil, sbIconPx, placeGlyphInk(th))
 	sb := newSidebar(th, glyphs, sidebarPlaces(), func(shell.Place) {})
 	sb.SetBounds(toolkit.Rect{X: 0, Y: 0, W: 200, H: 400})
 
@@ -639,17 +639,13 @@ func TestFinderWidgetsAndHelpers(t *testing.T) {
 	cw.OnEvent(toolkit.Event{Kind: toolkit.EventClick})
 	cw.SetBounds(toolkit.Rect{X: 0, Y: 0, W: 100, H: 10}) // h > bounds -> clamps
 
-	glyphs := buildPlaceGlyphs(sbIconPx, placeGlyphInk(th))
+	glyphs := buildPlaceGlyphs(nil, sbIconPx, placeGlyphInk(th))
 	if placeGlyph(glyphs, shell.PlaceKind(999)) != glyphs[shell.PlaceFolder] {
 		t.Error("placeGlyph fallback")
 	}
 	zero := &toolkit.Theme{}
 	if placeGlyphInk(zero).A != 0xFF {
 		t.Error("placeGlyphInk zero accent")
-	}
-	// mutedInk stays opaque.
-	if mutedInk(th, 0.4).A != 0xFF {
-		t.Error("mutedInk alpha")
 	}
 }
 
