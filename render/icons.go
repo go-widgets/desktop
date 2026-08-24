@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-freedesktop/icontheme"
 	"github.com/go-widgets/toolkit"
@@ -120,6 +121,34 @@ func (l *IconLoader) TryImage(name string) (*toolkit.Image, bool) {
 	}
 	img := l.load(name)
 	l.cache[name] = img // cache misses (nil) too, so a repeat lookup is O(1)
+	return img, img != nil
+}
+
+// TryThemeIcon resolves the first of the freedesktop-standard icon names that
+// the XDG icon theme provides to a real Image, or (nil, false) on a miss. It is
+// the seam the sidebar's place rows and the file-grid fallbacks use to prefer a
+// genuine system icon (user-home, folder-download, user-trash…) over a drawn
+// glyph. Unlike TryImage it appends no "application-x-executable" fallback and
+// never returns a placeholder, so the caller can fall back to a go-iconoir glyph
+// on a miss. In bytes mode (the browser, no XDG theme) it always misses, so the
+// portable shell simply gets the iconoir glyph — exactly as a headless / themeless
+// host does. Results are cached under a theme-namespaced key so they never
+// collide with a same-named app-icon lookup.
+func (l *IconLoader) TryThemeIcon(names []string) (*toolkit.Image, bool) {
+	if l == nil || l.theme == nil || len(names) == 0 {
+		return nil, false
+	}
+	key := "\x00theme\x00" + strings.Join(names, "\x00")
+	if img, ok := l.cache[key]; ok {
+		return img, img != nil
+	}
+	var img *toolkit.Image
+	if path, err := l.theme.FindIcon(names, l.size, l.scale); err == nil {
+		if pix, w, h, derr := decodeRGBA(path); derr == nil {
+			img = toolkit.NewImageFit(pix, w, h)
+		}
+	}
+	l.cache[key] = img // cache the miss (nil) too, so a repeat lookup is O(1)
 	return img, img != nil
 }
 

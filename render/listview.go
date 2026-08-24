@@ -35,6 +35,11 @@ type listView struct {
 
 	// reusable per-row icon Image, bounds mutated per row.
 	rowIcon *toolkit.Image
+
+	// empty is the toolkit widget that draws the centred "Dossier vide" state
+	// when the model is empty — the composed EmptyState rather than a hand-centred
+	// DrawText.
+	empty *toolkit.EmptyState
 }
 
 // listColumns are the four Finder columns; Nom takes the auto (remaining) width.
@@ -62,6 +67,7 @@ func newListView(model *mvvm.ObservableList[shell.FileItem], th *toolkit.Theme,
 		sortFn:  sortFn,
 		emptyFn: emptyFn,
 		rowIcon: toolkit.NewImageFit(nil, 0, 0),
+		empty:   toolkit.NewEmptyState("Dossier vide"),
 	}
 	lv.table = toolkit.NewTable(listColumns(), nil)
 	lv.table.SortColumn().Set(0)
@@ -114,17 +120,30 @@ func (lv *listView) SetBounds(r toolkit.Rect) {
 	lv.table.SetBounds(r)
 }
 
-// Draw paints the table (or the empty-state message).
+// Draw paints the table (or the empty-state widget).
 func (lv *listView) Draw(p painter.Painter, th *toolkit.Theme) {
 	b := lv.Bounds()
 	p.FillRect(b, th.Surface)
 	if lv.model.Len() == 0 {
-		drawCentredMessage(p, th, b, lv.emptyFn)
+		lv.empty.Message().Set(lv.emptyMessage())
+		lv.empty.SetBounds(b)
+		lv.empty.Draw(p, th)
 		// Still draw the header row for context.
 		lv.table.Draw(p, th)
 		return
 	}
 	lv.table.Draw(p, th)
+}
+
+// emptyMessage is the empty-state text for the current context: emptyFn's
+// message when it supplies one, else the default "Dossier vide".
+func (lv *listView) emptyMessage() string {
+	if lv.emptyFn != nil {
+		if m := lv.emptyFn(); m != "" {
+			return m
+		}
+	}
+	return "Dossier vide"
 }
 
 // OnEvent forwards to the table, opens the row when a click lands on the
@@ -184,16 +203,3 @@ var (
 	_ toolkit.DragSource = (*listView)(nil)
 	_ toolkit.DropTarget = (*listView)(nil)
 )
-
-// drawCentredMessage centres the empty-state message within b.
-func drawCentredMessage(p painter.Painter, th *toolkit.Theme, b toolkit.Rect, emptyFn func() string) {
-	msg := "Dossier vide"
-	if emptyFn != nil {
-		if m := emptyFn(); m != "" {
-			msg = m
-		}
-	}
-	ink := mutedInk(th, 0.4)
-	tw := toolkit.TextWidth(msg)
-	toolkit.DrawText(p, b.X+(b.W-tw)/2, b.Y+b.H/2-toolkit.GlyphHeight()/2, msg, ink)
-}
