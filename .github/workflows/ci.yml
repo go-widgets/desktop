@@ -283,3 +283,27 @@ jobs:
           name: browser-wasmdesk
           path: docs/browser-wasmdesk-*.png
           if-no-files-found: warn
+
+  # Hand-drawn-UI guard (blocking): bricolint is a go/analysis analyzer that flags
+  # raw painter primitives (FillRect/Stroke*/DrawImage/Text/…) called on a
+  # go-widgets/painter receiver in non-test app code, and toolkit.New<Widget>
+  # constructors built inside a Draw/Paint/Render method — the tells of chrome
+  # rasterised by hand instead of composed from a toolkit widget. A genuine render
+  # leaf opts out with `//bricolint:allow <reason>` (reason mandatory). The
+  # negative-control step injects a raw primitive into a real Draw method and
+  # asserts the guard bites, so a silently-disarmed guard turns CI red.
+  bricolint:
+    name: guard hand-drawn UI (bricolint)
+    runs-on: ubuntu-latest
+    env: { GOWORK: "off" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.4"
+      - name: Install bricolint
+        run: go install github.com/go-widgets/bricolint/cmd/bricolint@v0.1.0
+      - name: Guard against hand-drawn UI
+        run: go vet -vettool="$(go env GOPATH)/bin/bricolint" ./...
+      - name: Negative control (the guard must bite)
+        run: BRICOLINT="$(go env GOPATH)/bin/bricolint" bash hack/bricolint-negative-control.sh

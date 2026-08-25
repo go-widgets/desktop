@@ -501,6 +501,12 @@ func (s *Scene) Render() (*image.RGBA, error) {
 	buf := make([]byte, 4*w*h)
 	p := painter.NewPixelPainter(buf, w, h)
 	host := toolkit.Rect{X: 0, Y: 0, W: w, H: h}
+	// Genuine render leaf: the offscreen compositor host clears the raw,
+	// freshly-allocated framebuffer (make() zeroes it to transparent black) to
+	// the opaque theme ground before compositing the widget tree. There is no
+	// widget above this root to own the clear — on the live window path the
+	// window backend performs the equivalent framebuffer clear.
+	//bricolint:allow offscreen compositor root: framebuffer clear of a raw make()'d buffer, no widget above the root owns it
 	p.FillRect(host, s.theme.Background)
 	s.drawComposited(p, s.theme, host)
 
