@@ -22,6 +22,9 @@
 
 set -euo pipefail
 
+# Never let a parent go.work turn the clean-tree vet into a false failure.
+export GOWORK=off
+
 # Resolve the bricolint binary: honour $BRICOLINT (CI sets it to the installed
 # path), else fall back to $(go env GOPATH)/bin/bricolint.
 BRICOLINT="${BRICOLINT:-$(go env GOPATH)/bin/bricolint}"
@@ -37,13 +40,17 @@ ANCHOR='func (v *galleryView) Draw(p painter.Painter, th *toolkit.Theme) {'
 # guard exists to forbid. Compiles in the anchor method's scope.
 MARKER='p.FillRect(v.Bounds(), th.Surface) // bricolint-negative-control INJECTED'
 BACKUP="$ANCHOR_FILE.bricolint.bak"
+RESTORE=0
 
 vet() { go vet -vettool="$BRICOLINT" ./...; }
 
+# Restore the anchor file ONLY once a real backup has been taken (RESTORE=1) and
+# it is non-empty. Without RESTORE, a stale/empty leftover .bak (or a failure
+# before step 2's cp) could be moved over $ANCHOR_FILE and clobber it.
 restore() {
-  if [ -f "$BACKUP" ]; then
-    mv -f "$BACKUP" "$ANCHOR_FILE"
-  fi
+  [ "$RESTORE" = 1 ] && [ -s "$BACKUP" ] && mv -f "$BACKUP" "$ANCHOR_FILE"
+  rm -f "$BACKUP"
+  return 0
 }
 trap restore EXIT
 
@@ -52,7 +59,7 @@ vet
 echo "clean: PASS"
 
 echo "== step 2: inject a raw painter primitive into $ANCHOR_FILE =="
-cp "$ANCHOR_FILE" "$BACKUP"
+cp "$ANCHOR_FILE" "$BACKUP"; RESTORE=1   # arm restore ONLY once the backup is real
 # Robust literal insert: print each line, and immediately after the anchor line
 # emit the marker (tab-indented). index() is a literal substring match, so the
 # regex metacharacters in the anchor are harmless.
