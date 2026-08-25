@@ -2,7 +2,6 @@
 
 [![ci](https://github.com/go-widgets/desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/go-widgets/desktop/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/go-widgets/desktop.svg)](https://pkg.go.dev/github.com/go-widgets/desktop)
-[![Go Report Card](https://goreportcard.com/badge/github.com/go-widgets/desktop)](https://goreportcard.com/report/github.com/go-widgets/desktop)
 ![Go 1.26.4](https://img.shields.io/badge/go-1.26.4-00ADD8?logo=go)
 ![License BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue)
 
