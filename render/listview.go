@@ -40,6 +40,12 @@ type listView struct {
 	// when the model is empty — the composed EmptyState rather than a hand-centred
 	// DrawText.
 	empty *toolkit.EmptyState
+
+	// surface is the content-surface ground painted behind the table — a
+	// toolkit.Backdrop (Fill tracks theme.Surface) rather than a hand-drawn
+	// FillRect, so the view's background is a composed widget like every other
+	// piece of chrome in the shell.
+	surface *toolkit.Backdrop
 }
 
 // listColumns are the four Finder columns; Nom takes the auto (remaining) width.
@@ -68,6 +74,7 @@ func newListView(model *mvvm.ObservableList[shell.FileItem], th *toolkit.Theme,
 		emptyFn: emptyFn,
 		rowIcon: toolkit.NewImageFit(nil, 0, 0),
 		empty:   toolkit.NewEmptyState("Dossier vide"),
+		surface: &toolkit.Backdrop{Fill: th.Surface},
 	}
 	lv.table = toolkit.NewTable(listColumns(), nil)
 	lv.table.SortColumn().Set(0)
@@ -123,7 +130,9 @@ func (lv *listView) SetBounds(r toolkit.Rect) {
 // Draw paints the table (or the empty-state widget).
 func (lv *listView) Draw(p painter.Painter, th *toolkit.Theme) {
 	b := lv.Bounds()
-	p.FillRect(b, th.Surface)
+	lv.surface.Fill = th.Surface
+	lv.surface.SetBounds(b)
+	lv.surface.Draw(p, th)
 	if lv.model.Len() == 0 {
 		lv.empty.Message().Set(lv.emptyMessage())
 		lv.empty.SetBounds(b)
