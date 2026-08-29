@@ -19,15 +19,15 @@ import (
 // (go-freedesktop/icontheme: user-home, folder-download, user-trash…), so a
 // Linux host with an installed theme shows its own place icons; on a miss (a
 // themeless / headless host, or the browser) it falls back to the matching
-// go-iconoir glyph, tinted with a theme-derived ink. Either way no symbol is
+// Iconoir glyph, tinted with a theme-derived ink. Either way no symbol is
 // drawn by hand.
 
 // placeIcon pairs a place kind's freedesktop-standard theme names (tried in
-// order against the icon theme) with the go-iconoir stem used when no themed icon
+// order against the icon theme) with the Iconoir stem used when no themed icon
 // resolves. Every stem is verified against iconoir.Names().
 type placeIcon struct {
 	themeNames []string // freedesktop icon-naming-spec candidates, most-specific first
-	iconoir    string   // go-iconoir Regular stem fallback
+	iconoir    string   // Iconoir Regular stem fallback
 }
 
 // placeIcons maps every shell.PlaceKind to its themed-name candidates and iconoir
@@ -65,7 +65,7 @@ func placeGlyphInk(th *toolkit.Theme) toolkit.RGBA {
 
 // buildPlaceGlyphs resolves every sidebar glyph, keyed by kind: it prefers a real
 // themed icon from icons (an XDG icon theme) and falls back to the kind's
-// go-iconoir stem, tinted with ink, rendered at size. A nil icons loader (or one
+// Iconoir stem, tinted with ink, rendered at size. A nil icons loader (or one
 // with no theme, e.g. the browser's bytes mode) simply uses the iconoir glyph for
 // every kind. Kinds with no dedicated entry fall back to the generic folder glyph
 // via placeGlyph.

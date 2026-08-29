@@ -129,7 +129,7 @@ func (l *IconLoader) TryImage(name string) (*toolkit.Image, bool) {
 // the seam the sidebar's place rows and the file-grid fallbacks use to prefer a
 // genuine system icon (user-home, folder-download, user-trash…) over a drawn
 // glyph. Unlike TryImage it appends no "application-x-executable" fallback and
-// never returns a placeholder, so the caller can fall back to a go-iconoir glyph
+// never returns a placeholder, so the caller can fall back to a Iconoir glyph
 // on a miss. In bytes mode (the browser, no XDG theme) it always misses, so the
 // portable shell simply gets the iconoir glyph — exactly as a headless / themeless
 // host does. Results are cached under a theme-namespaced key so they never
