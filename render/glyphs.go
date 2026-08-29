@@ -5,19 +5,19 @@
 package render
 
 import (
-	"github.com/go-iconoir/iconoir"
 	"github.com/go-widgets/painter"
 	"github.com/go-widgets/toolkit"
 )
 
 // This file builds the shell's fallback icons — a folder, a document, a picture
-// and a generic app tile — from the Iconoir set (go-iconoir) rather than
-// hand-rasterised primitives, so a file grid or dock item with no real theme
-// icon or thumbnail shows a real, consistent symbol instead of a blank grey
-// placeholder square. Each glyph is rasterised once (into a fixed-size RGBA
-// buffer via the pure-Go painter) and cached on the Scene / FinderPane; the
-// Iconoir artwork is monochrome, so it is tinted with a theme-derived ink and
-// reads crisply at the shell's icon size on both light and dark themes.
+// and a generic app tile — from the Iconoir set (drawn through the toolkit's
+// DrawIconoir, whose glyph data is go-icons/iconoir) rather than hand-rasterised
+// primitives, so a file grid or dock item with no real theme icon or thumbnail
+// shows a real, consistent symbol instead of a blank grey placeholder square.
+// Each glyph is rasterised once (into a fixed-size RGBA buffer via the pure-Go
+// painter) and cached on the Scene / FinderPane; the Iconoir artwork is
+// monochrome, so it is tinted with a theme-derived ink and reads crisply at the
+// shell's icon size on both light and dark themes.
 
 // glyphImage rasterises draw into a size×size RGBA Image (fully transparent
 // where draw paints nothing, so the icon composits cleanly over any cell).
@@ -34,11 +34,11 @@ func glyphImage(size int, draw func(p *painter.PixelPainter)) *toolkit.Image {
 // iconGlyph rasterises the named Iconoir (Regular) glyph, fitted into a size×size
 // transparent buffer and tinted with ink, and returns it as a cached Image. It is
 // the single seam every fallback glyph (and every sidebar place glyph) goes
-// through. Callers pass only stems verified against iconoir.Names(); an unknown
-// stem would draw nothing (a transparent image) rather than a wrong symbol.
+// through. Callers pass only stems verified against toolkit.IconoirNames(); an
+// unknown stem draws nothing (a transparent image) rather than a wrong symbol.
 func iconGlyph(size int, stem string, ink toolkit.RGBA) *toolkit.Image {
 	return glyphImage(size, func(p *painter.PixelPainter) {
-		iconoir.Draw(p, toolkit.Rect{X: 0, Y: 0, W: size, H: size}, stem, ink)
+		toolkit.DrawIconoir(p, toolkit.Rect{X: 0, Y: 0, W: size, H: size}, stem, ink)
 	})
 }
 

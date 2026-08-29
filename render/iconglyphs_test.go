@@ -78,7 +78,7 @@ func TestTryThemeIconResolvesCachesAndMisses(t *testing.T) {
 func TestBuildPlaceGlyphsThemedAndFallback(t *testing.T) {
 	th := toolkit.DefaultDark()
 	// The theme provides a real user-home (PlaceHome); every other kind must fall
-	// back to its go-iconoir glyph.
+	// back to its Iconoir glyph.
 	loader := tempIconTheme(t, "user-home")
 	glyphs := buildPlaceGlyphs(loader, sbIconPx, placeGlyphInk(th))
 
