@@ -18,6 +18,8 @@ github.com/go-freedesktop/desktopentry v0.1.0 h1:1cvTNXo63J5sFx8Ch18e1Dzw8BWUY7w
 github.com/go-freedesktop/desktopentry v0.1.0/go.mod h1:iw5+/k0LMY2pvYYD3euvkjG/cUUZa37HEzLiTjaxqQE=
 github.com/go-freedesktop/icontheme v0.1.0 h1:sY7eELAv5Jr/69M75uQdDoxMnnYg7cd6MeQxjRqQVaw=
 github.com/go-freedesktop/icontheme v0.1.0/go.mod h1:1pd0HU10jyrUagmXSerxxnP7JI7yNQwYgtHEIjszMIs=
+github.com/go-freedesktop/icontheme v0.1.1 h1:e3bUy7s9T+wJVGE3FRr+mGVF2z6kbN456xIBuFGl/as=
+github.com/go-freedesktop/icontheme v0.1.1/go.mod h1:1pd0HU10jyrUagmXSerxxnP7JI7yNQwYgtHEIjszMIs=
 github.com/go-freedesktop/menu v0.1.0 h1:oakpvbM2ZdorKj8D2lzRxY8r9BUwGqMjPE/f54/Kv/c=
 github.com/go-freedesktop/menu v0.1.0/go.mod h1:M1s1BUAOa9fRels8rJ5tpxPH3bYRVmKW9bUHrOE/tFg=
 github.com/go-freedesktop/mime v0.1.0 h1:EpiwlodU55JWTV8c5CNrYdg9N8olStIlmQDajvJZ5Os=
