@@ -10,7 +10,7 @@ require (
 	github.com/go-freedesktop/mimeapps v0.1.0
 	github.com/go-freedesktop/notifications v0.5.0
 	github.com/go-gfx/gfx v0.11.0
-	github.com/go-opentype/fonts v0.6.0
+	github.com/go-opentype/fonts v0.9.0
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.8.0
 	github.com/go-widgets/painter v0.11.0
