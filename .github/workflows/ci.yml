@@ -27,8 +27,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - run: go version
@@ -65,8 +65,8 @@ jobs:
     name: test (windows-latest)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - name: Vet
@@ -100,8 +100,8 @@ jobs:
           - { os: ubuntu-latest, label: amd64 }
           - { os: ubuntu-24.04-arm, label: arm64 }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - run: CGO_ENABLED=0 go test ./...
@@ -118,8 +118,8 @@ jobs:
           - { goarch: ppc64le, qemu: qemu-ppc64le-static }
           - { goarch: s390x, qemu: qemu-s390x-static }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - run: sudo apt-get update && sudo apt-get install -y qemu-user-static
@@ -137,8 +137,8 @@ jobs:
     name: live shell (incremental)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - name: Byte-identity + damage-measurement proof
@@ -158,8 +158,8 @@ jobs:
     name: live shell (windowed, Xvfb)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - name: Install Xvfb + capture + icon themes
@@ -173,7 +173,7 @@ jobs:
             go test -tags=integration -run TestLiveWindowedX11 -v ./cmd/desktop/...
       - name: Upload the captured window as a build artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: live-shell-windowed
           path: cmd/desktop/live-shell-windowed.png
@@ -194,8 +194,8 @@ jobs:
     name: native shell (cocoa capture)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - name: Capture the native-macOS shell + assert pixels/input
@@ -208,7 +208,7 @@ jobs:
         run: CGO_ENABLED=0 go test -tags=integration -run TestLiveCocoaShell -v ./cmd/desktop/...
       - name: Upload the captured native shell as a build artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-macos-shell
           path: docs/native-macos-shell-2026-08-10.png
@@ -226,7 +226,7 @@ jobs:
         run: CGO_ENABLED=0 go test -tags=integration -run TestCocoaKeyboardFileOps -v ./cmd/desktop/...
       - name: Upload the keyboard file-ops captures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-macos-keyboard-fileops
           path: docs/native-macos-keyboard-fileops-2026-08-11.png
@@ -240,8 +240,8 @@ jobs:
     name: build js/wasm (wasmdesk client)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - name: Cross-compile the portable packages + client for js/wasm
@@ -262,13 +262,13 @@ jobs:
     name: browser proof (wasmdesk, Playwright)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
       - name: Install Playwright + Chromium
         run: |
           npm init -y >/dev/null 2>&1
@@ -278,7 +278,7 @@ jobs:
         run: bash clients/desktop/harness/run.sh
       - name: Upload the composited canvas captures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browser-wasmdesk
           path: docs/browser-wasmdesk-*.png
@@ -297,8 +297,8 @@ jobs:
     runs-on: ubuntu-latest
     env: { GOWORK: "off" }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.4"
       - name: Install bricolint
