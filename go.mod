@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/go-freedesktop/desktopentry v0.1.0
-	github.com/go-freedesktop/icontheme v0.1.0
+	github.com/go-freedesktop/icontheme v0.1.1
 	github.com/go-freedesktop/menu v0.1.0
 	github.com/go-freedesktop/mime v0.1.0
 	github.com/go-freedesktop/mimeapps v0.1.0
