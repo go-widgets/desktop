@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - run: go version
       - name: Vet
         run: CGO_ENABLED=0 go vet ./...
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - name: Vet
         run: go vet ./...
         env:
@@ -103,7 +103,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - run: CGO_ENABLED=0 go test ./...
 
   arch-qemu:
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - run: sudo apt-get update && sudo apt-get install -y qemu-user-static
       - name: Test under qemu (${{ matrix.goarch }})
         run: CGO_ENABLED=0 GOARCH=${{ matrix.goarch }} go test -exec=${{ matrix.qemu }} ./...
@@ -140,7 +140,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - name: Byte-identity + damage-measurement proof
         run: CGO_ENABLED=0 go test -run TestHostRootPixelIdentityAndDamage -v ./render/...
 
@@ -161,7 +161,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - name: Install Xvfb + capture + icon themes
         run: sudo apt-get update && sudo apt-get install -y xvfb x11-apps imagemagick dbus adwaita-icon-theme hicolor-icon-theme
       - name: Run the live windowed integration test under Xvfb
@@ -197,7 +197,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - name: Capture the native-macOS shell + assert pixels/input
         env:
           DESKTOP_COCOA_CAPTURE: "1"
@@ -243,7 +243,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - name: Cross-compile the portable packages + client for js/wasm
         run: GOOS=js GOARCH=wasm CGO_ENABLED=0 go build ./shell/... ./source/... ./render/... ./clients/...
       - name: Link the wasmdesk client wasm
@@ -265,7 +265,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -300,7 +300,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.4"
+          go-version: "1.27.0"
       - name: Install bricolint
         run: go install github.com/go-widgets/bricolint/cmd/bricolint@v0.1.0
       - name: Guard against hand-drawn UI
