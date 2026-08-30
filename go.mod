@@ -6,7 +6,7 @@ require (
 	github.com/go-freedesktop/desktopentry v0.1.0
 	github.com/go-freedesktop/icontheme v0.1.0
 	github.com/go-freedesktop/menu v0.1.0
-	github.com/go-freedesktop/mime v0.1.0
+	github.com/go-freedesktop/mime v0.1.1
 	github.com/go-freedesktop/mimeapps v0.1.0
 	github.com/go-freedesktop/notifications v0.5.0
 	github.com/go-gfx/gfx v0.11.0
