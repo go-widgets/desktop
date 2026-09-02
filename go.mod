@@ -14,8 +14,8 @@ require (
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.9.0
 	github.com/go-widgets/painter v0.12.0
-	github.com/go-widgets/toolkit v0.300.0
-	github.com/go-widgets/window v0.64.0
+	github.com/go-widgets/toolkit v0.301.0
+	github.com/go-widgets/window v0.65.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/sergeymakinen/go-ico v1.0.0
 	howett.net/plist v1.0.1
@@ -28,14 +28,14 @@ require (
 	github.com/andybalholm/brotli v1.2.3 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/ebitengine/purego v0.10.2 // indirect
-	github.com/go-crdt/collab v0.36.1 // indirect
-	github.com/go-crdt/crdt v0.37.0 // indirect
+	github.com/go-crdt/collab v0.37.0 // indirect
+	github.com/go-crdt/crdt v0.39.0 // indirect
 	github.com/go-freedesktop/x11 v0.2.0 // indirect
-	github.com/go-gtk/gtk4 v0.3.0 // indirect
+	github.com/go-gtk/gtk4 v0.4.0 // indirect
 	github.com/go-icons/iconoir v0.2.0 // indirect
-	github.com/go-images/images v0.0.0-20260830151046-7e8189dc2288 // indirect
+	github.com/go-images/images v0.0.0-20260831115433-23d959d868e3 // indirect
 	github.com/go-macos/appkit v0.1.0 // indirect
-	github.com/go-macos/objc v0.7.0 // indirect
+	github.com/go-macos/objc v0.9.1 // indirect
 	github.com/go-mswin/win32 v0.4.0 // indirect
 	github.com/go-opentype/opentype v0.12.0 // indirect
 	github.com/go-opentype/shape v0.5.0 // indirect
