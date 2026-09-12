@@ -9,13 +9,13 @@ require (
 	github.com/go-freedesktop/mime v0.1.1
 	github.com/go-freedesktop/mimeapps v0.1.0
 	github.com/go-freedesktop/notifications v0.5.0
-	github.com/go-gfx/gfx v0.19.0
+	github.com/go-gfx/gfx v0.24.0
 	github.com/go-opentype/fonts v0.9.0
 	github.com/go-thumbnail/thumbnail v0.1.0
 	github.com/go-widgets/mvvm v0.9.0
 	github.com/go-widgets/painter v0.13.0
 	github.com/go-widgets/toolkit v0.316.0
-	github.com/go-widgets/window v0.73.0
+	github.com/go-widgets/window v0.77.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/sergeymakinen/go-ico v1.0.0
 	howett.net/plist v1.0.1
@@ -35,7 +35,7 @@ require (
 	github.com/go-icons/iconoir v0.2.0 // indirect
 	github.com/go-images/images v0.0.0-20260831115433-23d959d868e3 // indirect
 	github.com/go-macos/appkit v0.5.0 // indirect
-	github.com/go-macos/objc v0.9.1 // indirect
+	github.com/go-macos/objc v0.10.2 // indirect
 	github.com/go-mswin/win32 v0.4.0 // indirect
 	github.com/go-opentype/opentype v0.12.0 // indirect
 	github.com/go-opentype/shape v0.5.0 // indirect
@@ -45,10 +45,10 @@ require (
 	github.com/rkoesters/xdg v0.0.1 // indirect
 	github.com/sergeymakinen/go-bmp v1.0.0 // indirect
 	github.com/tannevaled/gobig2 v0.1.0 // indirect
-	golang.org/x/image v0.45.0 // indirect
+	golang.org/x/image v0.46.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
