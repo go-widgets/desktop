@@ -3,19 +3,19 @@ module github.com/go-widgets/desktop
 go 1.27.1
 
 require (
-	github.com/go-freedesktop/desktopentry v0.1.0
-	github.com/go-freedesktop/icontheme v0.1.1
-	github.com/go-freedesktop/menu v0.1.0
-	github.com/go-freedesktop/mime v0.1.1
-	github.com/go-freedesktop/mimeapps v0.1.0
-	github.com/go-freedesktop/notifications v0.5.0
-	github.com/go-gfx/gfx v0.34.0
-	github.com/go-opentype/fonts v0.10.0
-	github.com/go-thumbnail/thumbnail v0.1.0
-	github.com/go-widgets/mvvm v0.9.0
-	github.com/go-widgets/painter v0.13.0
-	github.com/go-widgets/toolkit v0.321.2
-	github.com/go-widgets/window v0.83.0
+	github.com/go-freedesktop/desktopentry v0.2.0
+	github.com/go-freedesktop/icontheme v0.2.0
+	github.com/go-freedesktop/menu v0.3.0
+	github.com/go-freedesktop/mime v0.2.0
+	github.com/go-freedesktop/mimeapps v0.3.0
+	github.com/go-freedesktop/notifications v0.7.0
+	github.com/go-gfx/gfx v0.34.1
+	github.com/go-opentype/fonts v0.12.0
+	github.com/go-thumbnail/thumbnail v0.3.0
+	github.com/go-widgets/mvvm v0.11.0
+	github.com/go-widgets/painter v0.15.0
+	github.com/go-widgets/toolkit v0.326.0
+	github.com/go-widgets/window v0.86.1
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/sergeymakinen/go-ico v1.0.0
 	howett.net/plist v1.0.1
@@ -23,7 +23,7 @@ require (
 
 require (
 	github.com/adrg/xdg v0.5.3 // indirect
-	github.com/ajroetker/go-highway v0.0.4 // indirect
+	github.com/ajroetker/go-highway v0.0.12 // indirect
 	github.com/andybalholm/brotli v1.2.5 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/ebitengine/purego v0.11.1 // indirect
@@ -35,7 +35,7 @@ require (
 	github.com/go-images/gif v0.1.0 // indirect
 	github.com/go-images/images v0.0.0-20260927173152-87444e36aac4 // indirect
 	github.com/go-images/jpeg v0.2.0 // indirect
-	github.com/go-images/jpeg2000 v0.1.0 // indirect
+	github.com/go-images/jpeg2000 v0.13.2 // indirect
 	github.com/go-images/png v0.1.0 // indirect
 	github.com/go-macos/appkit v0.8.0 // indirect
 	github.com/go-macos/objc v0.10.2 // indirect
