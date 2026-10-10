@@ -50,7 +50,7 @@ require (
 	github.com/sergeymakinen/go-bmp v1.0.0 // indirect
 	github.com/tannevaled/gobig2 v0.2.0 // indirect
 	golang.org/x/image v0.46.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
