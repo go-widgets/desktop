@@ -9,7 +9,7 @@ require (
 	github.com/go-freedesktop/mime v0.2.0
 	github.com/go-freedesktop/mimeapps v0.3.0
 	github.com/go-freedesktop/notifications v0.7.0
-	github.com/go-gfx/gfx v0.36.1
+	github.com/go-gfx/gfx v0.36.3
 	github.com/go-opentype/fonts v0.14.0
 	github.com/go-thumbnail/thumbnail v0.3.0
 	github.com/go-widgets/mvvm v0.15.0

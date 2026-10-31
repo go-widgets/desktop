@@ -27,8 +27,8 @@ github.com/go-freedesktop/notifications v0.7.0 h1:RojhPOh/vqUAAujbuY4Jft7XtwEzXH
 github.com/go-freedesktop/notifications v0.7.0/go.mod h1:IIwdPLu2xwPMLDUC+R5MRh8Cn6OihMEnkM8fDrBcUIs=
 github.com/go-freedesktop/x11 v0.3.0 h1:DAZN7uAt8eQOyav90VduelaEJyTdWlAZjOTZOKvumxM=
 github.com/go-freedesktop/x11 v0.3.0/go.mod h1:6GsirPySzG8JmIhqUYc0bDcMfrXuaGf9iRsOWSP8JsU=
-github.com/go-gfx/gfx v0.36.1 h1:dnqxna+69Hr5ioGadB2UDe6wrXeqwPOhqftr6YONgpQ=
-github.com/go-gfx/gfx v0.36.1/go.mod h1:Tst3pkyuqFV13Ab98WZVxgJmFN4GZtTKoqwRkBZKko8=
+github.com/go-gfx/gfx v0.36.3 h1:z3h5Yf4o48wpBAPef9G30lSL3v69OCTxdo9rsL9vqAg=
+github.com/go-gfx/gfx v0.36.3/go.mod h1:Tst3pkyuqFV13Ab98WZVxgJmFN4GZtTKoqwRkBZKko8=
 github.com/go-gtk/gtk4 v0.9.0 h1:5Efx48jeWL1LTmKIqqPcseSoa4U8Pf0Sbzo/rU4nmGA=
 github.com/go-gtk/gtk4 v0.9.0/go.mod h1:BTpReN9ONh5ZO4p2ETjt8n7km3yEYOFW/Q9HprOC13g=
 github.com/go-icons/iconoir v0.3.0 h1:kHG2sU5IsCvtBS1JICuXgfFo5f8UfwY1m7KYMVy97CI=
