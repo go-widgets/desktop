@@ -18,10 +18,11 @@ import (
 //
 // Decoding is delegated to the fleet's unified decode registry
 // github.com/go-gfx/gfx/codec (CGO-free, BSD-3-Clause). codec sniffs the
-// container, demuxes it with a bounds-checked TLV walk (.icns) or the reference
-// github.com/sergeymakinen/go-ico codec (.ico), and decodes each representation
-// with the standard-library image decoders. This REPLACES a hand-rolled .icns
-// TLV unpacker and a direct go-ico call: codec subsumes both behind one entry
+// container, demuxes it with a bounds-checked TLV walk (.icns) or its own bounded
+// .ico decoder (since gfx v0.36.3: only the chosen entry is decoded, nothing is
+// allocated from a size field), and decodes each representation with the
+// standard-library image decoders. This REPLACES a hand-rolled .icns TLV
+// unpacker and a direct go-ico call: codec subsumes both behind one entry
 // point, so the shell decodes every icon container the same way and reimplements
 // no decoder.
 //
