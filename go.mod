@@ -9,7 +9,7 @@ require (
 	github.com/go-freedesktop/mime v0.2.0
 	github.com/go-freedesktop/mimeapps v0.3.0
 	github.com/go-freedesktop/notifications v0.7.0
-	github.com/go-gfx/gfx v0.36.3
+	github.com/go-gfx/gfx v0.37.0
 	github.com/go-opentype/fonts v0.14.0
 	github.com/go-thumbnail/thumbnail v0.3.0
 	github.com/go-widgets/mvvm v0.15.0
@@ -32,7 +32,7 @@ require (
 	github.com/go-images/gif v0.2.0 // indirect
 	github.com/go-images/images v0.1.1-0.20261026203936-4ac989d310a1 // indirect
 	github.com/go-images/jpeg v0.3.0 // indirect
-	github.com/go-images/jpeg2000 v0.13.8 // indirect
+	github.com/go-images/jpeg2000 v0.14.0 // indirect
 	github.com/go-images/png v0.2.0 // indirect
 	github.com/go-macos/appkit v0.9.0 // indirect
 	github.com/go-macos/objc v0.11.0 // indirect
