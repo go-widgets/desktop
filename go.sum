@@ -27,8 +27,8 @@ github.com/go-freedesktop/notifications v0.7.0 h1:RojhPOh/vqUAAujbuY4Jft7XtwEzXH
 github.com/go-freedesktop/notifications v0.7.0/go.mod h1:IIwdPLu2xwPMLDUC+R5MRh8Cn6OihMEnkM8fDrBcUIs=
 github.com/go-freedesktop/x11 v0.3.0 h1:DAZN7uAt8eQOyav90VduelaEJyTdWlAZjOTZOKvumxM=
 github.com/go-freedesktop/x11 v0.3.0/go.mod h1:6GsirPySzG8JmIhqUYc0bDcMfrXuaGf9iRsOWSP8JsU=
-github.com/go-gfx/gfx v0.36.3 h1:z3h5Yf4o48wpBAPef9G30lSL3v69OCTxdo9rsL9vqAg=
-github.com/go-gfx/gfx v0.36.3/go.mod h1:Tst3pkyuqFV13Ab98WZVxgJmFN4GZtTKoqwRkBZKko8=
+github.com/go-gfx/gfx v0.37.0 h1:nQH23BtuJ1pqXqvg0s7FHSI1c/ewg9nnBl3Nc3cYCik=
+github.com/go-gfx/gfx v0.37.0/go.mod h1:4OenoKrgdht6UXYf5SV8w2tb41hfAdy4QoxJRPsRDz4=
 github.com/go-gtk/gtk4 v0.9.0 h1:5Efx48jeWL1LTmKIqqPcseSoa4U8Pf0Sbzo/rU4nmGA=
 github.com/go-gtk/gtk4 v0.9.0/go.mod h1:BTpReN9ONh5ZO4p2ETjt8n7km3yEYOFW/Q9HprOC13g=
 github.com/go-icons/iconoir v0.3.0 h1:kHG2sU5IsCvtBS1JICuXgfFo5f8UfwY1m7KYMVy97CI=
@@ -39,8 +39,8 @@ github.com/go-images/images v0.1.1-0.20261026203936-4ac989d310a1 h1:R7Phx1lhFnia
 github.com/go-images/images v0.1.1-0.20261026203936-4ac989d310a1/go.mod h1:TXN7V9gKgEe8L4GVYeTO01sQI6n5JUL5Q1xIl09qOio=
 github.com/go-images/jpeg v0.3.0 h1:i6CGNbN2YNEz8stBI0hXjN6UwVGwQ9zCh8LvFeD8fHg=
 github.com/go-images/jpeg v0.3.0/go.mod h1:3eUjtNscxUULLUH88DvMN8OKTq2C0/0AjubOjAHoHHk=
-github.com/go-images/jpeg2000 v0.13.8 h1:B/k5sz9o/lgrvY3iGRDjzMWmQkX5zW2pvhDw6NkmBGs=
-github.com/go-images/jpeg2000 v0.13.8/go.mod h1:4/Pp3Jp2es5lA8/Ema8F7dFwl0vZprCj9MyznIz9Gdc=
+github.com/go-images/jpeg2000 v0.14.0 h1:/nH3l5r95E7OkNZCfq7gmoDQvJzVAhmSw6rd2Ifk7jo=
+github.com/go-images/jpeg2000 v0.14.0/go.mod h1:4/Pp3Jp2es5lA8/Ema8F7dFwl0vZprCj9MyznIz9Gdc=
 github.com/go-images/png v0.2.0 h1:RFPkHPuRYRvrDJol/Mmn9P1DSaLV8VPmEQ8BkZoCpL0=
 github.com/go-images/png v0.2.0/go.mod h1:g1qayDmWLClHo9R5KQ+RrcUNTBcaA4c1thaIfEoS3vg=
 github.com/go-macos/appkit v0.9.0 h1:xjtzOB/8FO2aYRmdOx0ok58E+8X4LeUp0s+eVdafdl4=
